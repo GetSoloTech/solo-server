@@ -1,9 +1,17 @@
 import subprocess
 import typer
-import sys
-import platform
-from typing import Optional
 
+def is_cuda_toolkit_installed():
+    """Check if CUDA Toolkit is installed by running nvcc command."""
+    try:
+        result = subprocess.run(["nvcc", "--version"], capture_output=True, text=True)
+        if result.returncode == 0:
+            return True
+        else:
+            return False
+    except FileNotFoundError:
+        return False
+                
 def check_nvidia_toolkit(os_name) -> bool:
     """
     Checks if NVIDIA toolkit is properly installed based on the operating system.

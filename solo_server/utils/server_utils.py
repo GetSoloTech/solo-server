@@ -1,15 +1,16 @@
 import os 
-import typer
-import subprocess
-import shutil
-import time
-import platform
-from solo_server.utils.hardware import detect_hardware, display_hardware_info
-from solo_server.utils.nvidia import check_nvidia_toolkit, install_nvidia_toolkit_linux, install_nvidia_toolkit_windows
 import json
+import typer
+import shutil
+import sys
+import time
+import subprocess
+
 from solo_server.config import CONFIG_PATH
-from rich.prompt import Prompt
-from rich.prompt import Prompt
+from solo_server.utils.nvidia import is_cuda_toolkit_installed
+
+def is_uv_available():
+    return shutil.which("uv") is not None
 
 def start_docker_engine(os_name):
     """
@@ -208,7 +209,7 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
             
             # Add the model argument and additional parameters
             docker_run_cmd.append("--model")
-            docker_run_cmd.append("meta-llama/Llama-3.2-1B")
+            docker_run_cmd.append("meta-llama/Llama-3.2-1B-Instruct")
             docker_run_cmd.append("--max_model_len=4096")
 
             if gpu_vendor == "NVIDIA":
@@ -301,7 +302,7 @@ def setup_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
             else:
                 docker_run_cmd.append("ollama/ollama")
 
-            typer.echo("🚀 Starting Solo Server...")
+            typer.echo("\n🚀 Starting Ollama Server...")
             subprocess.run(docker_run_cmd, check=True, capture_output=True)
 
         # Wait for container to be ready with timeout
@@ -315,7 +316,7 @@ def setup_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
                     capture_output=True,
                 )
                 typer.secho(
-                "✅ Solo server is ready!\n",
+                "✅ Ollama server is ready!\n",
                 fg=typer.colors.BRIGHT_CYAN,
                 bold=True
                 )
@@ -330,9 +331,53 @@ def setup_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
         typer.echo(f"❌ Docker command failed: {e}", err=True)
         # Cleanup on failure
         if container_exists:
-            subprocess.run(["docker", "stop", "solo"], check=False)
+            subprocess.run(["docker", "stop", "solo-ollama"], check=False)
         raise typer.Exit(code=1)
     except Exception as e:
         typer.echo(f"❌ Unexpected error: {e}", err=True)
         return False
 
+def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: str = None):
+    """Setup llama_cpp_python server using system config."""
+    typer.echo("\n🔧 Setting up llama_cpp server...")
+
+    # Set CMAKE_ARGS based on hardware and OS
+    cmake_args = []
+
+    if gpu_enabled:
+        if gpu_vendor == "NVIDIA":
+            if not is_cuda_toolkit_installed():
+                typer.echo("❌ NVIDIA CUDA Toolkit is not installed. Please install it to proceed with GPU acceleration.", err=True)
+                typer.secho("Install Here: https://developer.nvidia.com/cuda-downloads", fg=typer.colors.GREEN)
+                return False
+            cmake_args.append("-DGGML_CUDA=on")
+        elif gpu_vendor == "AMD":
+            cmake_args.append("-DGGML_HIPBLAS=on")
+        elif gpu_vendor == "Apple Silicon":
+            cmake_args.append("-DGGML_METAL=on")
+    else:
+        cmake_args = []
+  
+    cmake_args_str = " ".join(cmake_args)
+
+    try:
+        typer.echo("Installing llama-cpp server...")
+        env = os.environ.copy()
+        env["CMAKE_ARGS"] = cmake_args_str
+        # Install llama-cpp-python using the Python interpreter
+        if is_uv_available():
+            use_uv = typer.confirm("uv is available. Are you using (uv's) virtual env for installation?", default=True)
+            if use_uv:
+                installer_cmd = ["uv", "pip", "install", "--no-cache-dir", "llama-cpp-python[server]"]
+            else:
+                installer_cmd = [sys.executable, "-m", "pip", "install", "--no-cache-dir", "llama-cpp-python[server]"]
+        else:
+            installer_cmd = [sys.executable, "-m", "pip", "install", "--no-cache-dir", "llama-cpp-python[server]"]
+
+        subprocess.check_call(installer_cmd, env=env)
+        typer.echo("\n ✅ llama-cpp server is ready!")
+        return True
+
+    except subprocess.CalledProcessError as e:
+        typer.echo(f"❌ Failed to setup llama_cpp_python server: {e}", err=True)
+        return False

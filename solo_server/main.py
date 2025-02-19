@@ -1,20 +1,17 @@
 import typer
 import subprocess
 import shutil
-import time
-import platform
 from enum import Enum
-from typing import Optional
 from pathlib import Path
 from solo_server.utils.hardware import detect_hardware, display_hardware_info
 from solo_server.utils.nvidia import check_nvidia_toolkit, install_nvidia_toolkit_linux, install_nvidia_toolkit_windows
-from solo_server.utils.server_utils import start_docker_engine, setup_vllm_server, setup_ollama_server
+from solo_server.utils.server_utils import start_docker_engine, setup_vllm_server, setup_ollama_server, setup_llama_cpp_server
 
 class ServerType(str, Enum):
-    OLLAMA = "ollama"
-    VLLM = "vllm"
-    LLAMACPP = "llama.cpp"
-    CUSTOM = "custom api"
+    OLLAMA = "Ollama"
+    VLLM = "vLLM"
+    LLAMACPP = "Llama.cpp"
+    CUSTOM = "Custom API"
 
 def setup():
     """Interactive setup for Solo Server environment"""
@@ -24,35 +21,17 @@ def setup():
     
     typer.echo("\n🔧 Starting Solo Server Setup...\n")
     
-    # Check Docker installation
-    if not shutil.which("docker"):
-        typer.echo("❌ Docker is not installed. Please install Docker first.\n", err=True)
-        typer.secho("Install Here: https://docs.docker.com/get-docker/", fg=typer.colors.GREEN)
-        raise typer.Exit(code=1)
-    
-    try:
-        subprocess.run(["docker", "info"], check=True, capture_output=True)
-    except subprocess.CalledProcessError:
-        typer.echo("Docker daemon is not running. Attempting to start Docker...", err=True)
-        if not start_docker_engine(os_name):
-            raise typer.Exit(code=1)
-        # Re-check if Docker is running
-        try:
-            subprocess.run(["docker", "info"], check=True, capture_output=True)
-        except subprocess.CalledProcessError:
-            typer.echo("Try running the terminal with admin privileges.", err=True)
-            raise typer.Exit(code=1)
-        
     # Server Selection
     typer.echo("📊 Available Server Options:")
     for server in ServerType:
         typer.echo(f"  • {server.value}")
     
     def server_type_prompt(value: str) -> ServerType:
-        try:
-            return ServerType(value.lower())
-        except ValueError:
-            raise typer.BadParameter(f"Invalid server type: {value}")
+        normalized_value = value.lower()
+        for server in ServerType:
+            if server.value.lower() == normalized_value:
+                return server
+        raise typer.BadParameter(f"Invalid server type: {value}")
 
     server_choice = typer.prompt(
         "\nChoose server",
@@ -60,15 +39,16 @@ def setup():
         default="ollama",
     )
     
+
     # GPU Configuration
     use_gpu = False
-    if gpu_vendor in ["NVIDIA", "AMD"]:
-        if gpu_vendor == "NVIDIA" and check_nvidia_toolkit(os_name):
-            use_gpu = typer.confirm(
+    if gpu_vendor in ["NVIDIA", "AMD", "Intel", "Apple"]:
+        use_gpu = typer.confirm(
                 f"\n🎮 {gpu_vendor} GPU detected ({gpu_model}). Use GPU acceleration?",
                 default=True
             )
-            if use_gpu and not check_nvidia_toolkit(os_name):
+        if use_gpu and gpu_vendor == "NVIDIA":
+            if not check_nvidia_toolkit(os_name):
                 if typer.confirm("NVIDIA toolkit not found. Install now?", default=True):
                     if os_name == "Linux":
                         install_nvidia_toolkit_linux()
@@ -77,11 +57,31 @@ def setup():
                     else:
                         typer.echo("Unsupported OS for automated NVIDIA toolkit installation.")
                         use_gpu = False
-        else:
-            typer.echo(f"\n⚠️  {gpu_vendor} GPU detected but drivers not installed.")
-            use_gpu = False
+                else:
+                    use_gpu = False
     
-    # Server specific setup
+    # Docker Engine Check
+    if server_choice in [ServerType.OLLAMA, ServerType.VLLM]:
+        # Check Docker installation
+        if not shutil.which("docker"):
+            typer.echo("❌ Docker is not installed. Please install Docker first.\n", err=True)
+            typer.secho("Install Here: https://docs.docker.com/get-docker/", fg=typer.colors.GREEN)
+            raise typer.Exit(code=1)
+        
+        try:
+            subprocess.run(["docker", "info"], check=True, capture_output=True)
+        except subprocess.CalledProcessError:
+            typer.echo("Docker daemon is not running. Attempting to start Docker...", err=True)
+            if not start_docker_engine(os_name):
+                raise typer.Exit(code=1)
+            # Re-check if Docker is running
+            try:
+                subprocess.run(["docker", "info"], check=True, capture_output=True)
+            except subprocess.CalledProcessError:
+                typer.echo("Try running the terminal with admin privileges.", err=True)
+                raise typer.Exit(code=1)
+            
+    # Server setup
     try:
         if server_choice == ServerType.VLLM:
             setup_success = setup_vllm_server(use_gpu, cpu_model, gpu_vendor)
@@ -100,8 +100,12 @@ def setup():
                 )
             
         elif server_choice == ServerType.LLAMACPP:
-            typer.echo("\n🚧 Llama.cpp server setup not implemented yet")
-            # TODO: Implement Llama.cpp setup
+            setup_success = setup_llama_cpp_server(use_gpu, gpu_vendor, os_name)
+            if setup_success:
+                typer.secho(
+                    "Serve the model & access the API at: http://localhost:8000.\n",
+                    fg=typer.colors.BLUE
+                )
             
         elif server_choice == ServerType.CUSTOM:
             api_url = typer.prompt("Enter your custom API endpoint")

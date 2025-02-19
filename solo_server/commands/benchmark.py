@@ -1,6 +1,5 @@
-import argparse
 import time
-from typing import List
+from typing import List, Tuple
 from datetime import datetime
 from llama_cpp import Llama
 from pydantic import BaseModel, Field, field_validator
@@ -8,6 +7,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.progress import track
 import typer
+import requests
+import json
 
 console = Console()
 
@@ -22,46 +23,77 @@ class LlamaResponse(BaseModel):
     done: bool
     total_duration: float
     load_duration: float = 0.0
-    prompt_eval_count: int = Field(-1, validate_default=True)
-    prompt_eval_duration: float = 0.0
     eval_count: int
     eval_duration: float
 
-    @field_validator("prompt_eval_count")
-    @classmethod
-    def validate_prompt_eval_count(cls, value: int) -> int:
-        if value == -1:
-            console.print("\n[bold red]Warning:[/] prompt token count was not provided, potentially due to prompt caching.\n")
-            return 0
-        return value
-
-def load_model(model_path: str) -> (Llama, float):
+def load_model(model_path: str) -> Tuple[Llama, float]:
     console.print(Panel.fit(f"[cyan]Loading model: {model_path}[/]", title="[bold magenta]Solo Server[/]"))
     start_time = time.time()
     model = Llama(model_path=model_path)
     load_duration = time.time() - start_time
     return model, load_duration
 
-def run_benchmark(model: Llama, model_name: str, prompt: str) -> LlamaResponse:
-    start_time = time.time()
-    response = model(prompt, stop=["\n"], echo=False)
-    eval_duration = time.time() - start_time
+def api_response(model: str, prompt: str, url: str, server_type:str = None) -> dict:
+    payload = {
+        "model": model,
+        "prompt": prompt,
+    }
 
-    message = Message(role="assistant", content=response["choices"][0]["text"])
+    if server_type == "ollama":
+        payload["model"] = model.lower()
+        payload["stream"] = False
+    headers = {"Content-Type": "application/json"}
+    start_time = time.time()
+    try:
+        response = requests.post(url, data=json.dumps(payload), headers=headers)
+        response.raise_for_status()
+        data = response.json()
+        # Add eval_duration if not present
+        if "eval_duration" not in data:
+            data["eval_duration"] = time.time() - start_time
+        return data
+    except requests.exceptions.RequestException as e:
+        return {"error": str(e)}
+
+def run_benchmark(server_type: str, model: object, model_name: str, prompt: str, load_duration: float) -> LlamaResponse:
+    content = ""
+    if server_type == "llama.cpp":
+        start_time = time.time()
+        response = model(prompt, stop=["\n"], echo=False)
+        eval_duration = time.time() - start_time
+        content = response["choices"][0]["text"]
+    else:
+        url = "http://localhost:11434/api/generate" if server_type == "ollama" else "http://localhost:8000/v1/completions"
+        response = api_response(model_name, prompt, url, server_type)
+
+        if server_type == "vllm":
+            if "choices" in response and "message" in response["choices"][0]:
+                content = response["choices"][0]["message"]["content"]
+            else:
+                content = response["choices"][0]["text"]
+            eval_duration = response.get("eval_duration", 0.0) 
+        else:
+            content = response.get("response", "")
+            load_duration = response.get("load_duration", 0.0) * 1e-9  # Convert nanoseconds to seconds
+            eval_duration = response.get("eval_duration", 0.0) * 1e-9  # Convert nanoseconds to seconds
+            
+    message = Message(role="assistant", content=content)
 
     return LlamaResponse(
         model=model_name,
         created_at=datetime.now(),
         message=message,
         done=True,
-        total_duration=eval_duration,
-        eval_count=len(response["choices"][0]["text"].split()),
+        load_duration=load_duration,
+        total_duration=load_duration + eval_duration,
+        eval_count=len(content.split()),
         eval_duration=eval_duration,
     )
 
 def inference_stats(model_response: LlamaResponse):
-    response_ts = model_response.eval_count / model_response.eval_duration
-    total_ts = model_response.eval_count / model_response.total_duration
+    # Add checks for zero duration
+    response_ts = 0.0 if model_response.eval_duration == 0 else model_response.eval_count / model_response.eval_duration
+    total_ts = 0.0 if model_response.total_duration == 0 else model_response.eval_count / model_response.total_duration
 
     console.print(
         Panel.fit(
@@ -78,7 +110,7 @@ def inference_stats(model_response: LlamaResponse):
     )
 
 def average_stats(responses: List[LlamaResponse]):
-    if len(responses) == 0:
+    if not responses:
         console.print("[red]No stats to average.[/]")
         return
 
@@ -95,16 +127,25 @@ def average_stats(responses: List[LlamaResponse]):
     inference_stats(avg_response)
 
 def benchmark(
-    model_path: str = typer.Option("Llama-3.2-1B-Instruct-Q4_K_M.gguf", "-m", help="Path to the Llama model file."),
-    prompts: List[str] = typer.Option(["Why is the sky blue?", "Write a report on the financials of Apple Inc."], "-p", help="List of prompts to use for benchmarking."),
+    server_type: str = typer.Option(None, "-s", help="Type of server (e.g., ollama, vllm, llama.cpp)."),
+    model_name: str = typer.Option(None, "-m", help="Name of the model."),
+    prompts: List[str] = typer.Option(["Why is the sky blue?", "Write a report on the financials of Apple Inc.", 
+                                       "Tell me about San Francisco"], "-p", help="List of prompts to use for benchmarking."),
 ):
-    console.print("\n[bold cyan]Starting Solo Server Benchmark...[/]")
-    model, load_duration = load_model(model_path)
-    model_name = model_path.split("/")[-1]
-    
+    if not server_type:
+        server_type = typer.prompt("Enter server type (ollama, vllm, llama.cpp)")
+    if not model_name:
+        model_name = typer.prompt("Enter model name")
+
+    console.print(f"\n[bold cyan]Starting Solo Server Benchmark for {server_type} with model {model_name}...[/]")
+
+    model = None
+    load_duration = 0.0
+    if server_type == "llama.cpp":
+        model, load_duration = load_model(model_name)
     responses: List[LlamaResponse] = []
     for prompt in track(prompts, description="[cyan]Running benchmarks..."):
-        response = run_benchmark(model, model_name, prompt)
+        response = run_benchmark(server_type, model, model_name, prompt, load_duration)
         responses.append(response)
         inference_stats(response)
     
