@@ -92,3 +92,28 @@ def gdownload(project_id: str):
         typer.echo(json.dumps(response.json(), indent=2))
     else:
         typer.echo(f"❌ An error occurred: {response.text}", err=True)
+
+
+EOS_TOKEN = tokenizer.eos_token  # Must add EOS_TOKEN
+train_prompt_style = '{"prompt": "{0}", "completion": "{1}"}'
+
+def formatting_prompts_func(examples):
+    inputs = examples["Question"]
+    outputs = examples["Response"]
+    texts = []
+    for input, output in zip(inputs, outputs):
+        text = train_prompt_style.format(input, output) + EOS_TOKEN
+        texts.append(text)
+    return {
+        "text": texts,
+    }
+
+def format_data(path):
+    with open(path, 'r') as f:
+        data = json.load(f)
+    new_data = []
+    for item in data:
+        item['prompt'] = item['prompt'].replace('{{', '{').replace('}}', '}')
+        new_data.append(item)
+    with open(path, 'w') as f:
+        json.dump(new_data, f)
