@@ -5,7 +5,18 @@ def stop(name: str = ""):
     """
     Stops the Ollama Docker container and any running models.
     """
-    typer.echo("🛑 Stopping Solo Server...")
+
+    # Check if docker is running
+    try:
+        subprocess.run(["docker", "info"], 
+                      check=True, 
+                      stdout=subprocess.PIPE, 
+                      stderr=subprocess.PIPE)
+    except subprocess.CalledProcessError:
+        typer.echo("\n✅ Solo server is already stopped (Docker is not running)\n")
+        return
+
+    typer.echo("Stopping Solo Server...")
 
     try:
         # Stop the Docker container

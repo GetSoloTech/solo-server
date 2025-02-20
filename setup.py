@@ -19,7 +19,10 @@ setup(
         "GPUtil",
         "psutil",
         "requests", 
-        "tabulate", 
+        "rich",
+        "huggingface_hub",
+        "llama-cpp-python",
+        "pydantic", 
     ],
     extras_require={
         "dev": ["pytest", "black", "isort"],
