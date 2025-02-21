@@ -1,13 +1,9 @@
-# requirements.txt
-typer>=0.4.0
-rich>=12.0.0
-psutil>=5.9.0
-requests>=2.28.0
-gputil>=1.4.0  # Optional
-litserve==0.1.0
-cog
-fastapi
-uvicorn
-pydantic
-torch==2.3
-locust
+# Core deep learning and model serving packages
+torch>=2.0.0
+transformers>=4.30.0
+litserve>=0.1.0
+accelerate>=0.18.0
+
+# GPTQModel with extras for optimized quantized model support:
+# Enables integrations with vLLM, sglang, bitblas, ipex, and auto_round for high-performance inference.
+gptqmodel[vllm,sglang,bitblas,ipex,auto_round]>=0.1.0
