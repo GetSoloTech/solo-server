@@ -3,9 +3,10 @@ import subprocess
 import shutil
 from enum import Enum
 from pathlib import Path
-from solo_server.utils.hardware import detect_hardware, display_hardware_info
+from solo_server.utils.docker_utils import start_docker_engine
+from solo_server.utils.hardware import detect_hardware, display_hardware_info, recommended_server
 from solo_server.utils.nvidia import check_nvidia_toolkit, install_nvidia_toolkit_linux, install_nvidia_toolkit_windows
-from solo_server.utils.server_utils import start_docker_engine, setup_vllm_server, setup_ollama_server, setup_llama_cpp_server
+from solo_server.utils.server_utils import setup_vllm_server, setup_ollama_server, setup_llama_cpp_server
 
 class ServerType(str, Enum):
     OLLAMA = "Ollama"
@@ -25,6 +26,8 @@ def setup():
     typer.echo("📊 Available Server Options:")
     for server in ServerType:
         typer.echo(f"  • {server.value}")
+
+    recmd_server = recommended_server(memory_gb, gpu_vendor, gpu_memory) 
     
     def server_type_prompt(value: str) -> ServerType:
         normalized_value = value.lower()
@@ -36,28 +39,30 @@ def setup():
     server_choice = typer.prompt(
         "\nChoose server",
         type=server_type_prompt,
-        default="ollama",
+        default=recmd_server,
     )
-    
-
     # GPU Configuration
     use_gpu = False
-    if gpu_vendor in ["NVIDIA", "AMD", "Intel", "Apple"]:
-        use_gpu = typer.confirm(
-                f"\n🎮 {gpu_vendor} GPU detected ({gpu_model}). Use GPU acceleration?",
-                default=True
-            )
+    if gpu_vendor in ["NVIDIA", "AMD", "Intel", "Apple Silicon"]:
+        use_gpu = True
         if use_gpu and gpu_vendor == "NVIDIA":
             if not check_nvidia_toolkit(os_name):
-                if typer.confirm("NVIDIA toolkit not found. Install now?", default=True):
+                if typer.confirm("NVIDIA GPU Detected, but GPU drivers not found. Install now?", default=True):
                     if os_name == "Linux":
                         install_nvidia_toolkit_linux()
+                        try:
+                            install_nvidia_toolkit_linux()
+                        except subprocess.CalledProcessError as e:
+                            typer.echo(f"Failed to install NVIDIA toolkit: {e}", err=True)
+                            use_gpu = False
                     elif os_name == "Windows":
-                        install_nvidia_toolkit_windows()
-                    else:
-                        typer.echo("Unsupported OS for automated NVIDIA toolkit installation.")
-                        use_gpu = False
+                        try:
+                            install_nvidia_toolkit_windows()
+                        except subprocess.CalledProcessError as e:
+                            typer.echo(f"Failed to install NVIDIA toolkit: {e}", err=True)
+                            use_gpu = False
                 else:
+                    typer.echo("Falling back to CPU inference.")
                     use_gpu = False
     
     # Docker Engine Check
@@ -69,16 +74,16 @@ def setup():
             raise typer.Exit(code=1)
         
         try:
-            subprocess.run(["docker", "info"], check=True, capture_output=True)
+            subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
         except subprocess.CalledProcessError:
             typer.echo("Docker daemon is not running. Attempting to start Docker...", err=True)
             if not start_docker_engine(os_name):
                 raise typer.Exit(code=1)
             # Re-check if Docker is running
             try:
-                subprocess.run(["docker", "info"], check=True, capture_output=True)
+                subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
             except subprocess.CalledProcessError:
-                typer.echo("Try running the terminal with admin privileges.", err=True)
+                typer.echo("Try restarting the terminal with admin privileges and close any instances of podman.", err=True)
                 raise typer.Exit(code=1)
             
     # Server setup
@@ -90,6 +95,10 @@ def setup():
                     "Access the API at: http://localhost:8000\n",
                     fg=typer.colors.BLUE
                 )
+                typer.secho(
+                            "If you experience any issues, check docker logs with 'docker logs solo-vllm'\n",
+                            fg=typer.colors.YELLOW
+                        )
             
         elif server_choice == ServerType.OLLAMA:
             setup_success = setup_ollama_server(use_gpu, gpu_vendor)
@@ -120,11 +129,8 @@ def setup():
             
             typer.secho("\n✅ Custom API configuration saved!", fg=typer.colors.BRIGHT_GREEN)
     
-    except subprocess.CalledProcessError as e:
-        typer.echo(f"\n❌ Setup failed: {e}", err=True)
-        raise typer.Exit(code=1)
     except Exception as e:
-        typer.echo(f"\n❌ Unexpected error: {e}", err=True)
+        typer.echo(f"\n❌ Setup failed: {e}", err=True)
         raise typer.Exit(code=1)
 
 if __name__ == "__main__":
