@@ -1,14 +1,12 @@
 import json
 from datasets import Dataset
-from unsloth import FastLanguageModel
+from unsloth import FastLanguageModel, is_bfloat16_supported, standardize_sharegpt
 from pathlib import Path
 import typer
 from peft import LoraConfig, TaskType
-from unsloth import is_bfloat16_supported
 from trl import SFTTrainer
 from transformers import TrainingArguments
 import torch
-
 
 def run_training(
     data_path: str,
@@ -74,56 +72,18 @@ def run_training(
     with open(data_path) as f:
         raw_data = json.load(f)
 
-    EOS_TOKEN = tokenizer.eos_token
-    # Define prompt template
-    qa_prompt = """Based on the following question, provide a relevant answer:
-
-### Question:
-{question}
-
-### Response:
-{answer}"""
-
-    # Format data using prompt template
-    def formatting_func(examples):
-        questions = []
-        answers = []
-        for item in examples["data"]:
-            data_dict = json.loads(item["data"])
-            questions.append(data_dict["question"])
-            answers.append(data_dict["answer"])
-        
-        texts = []
-        for question, answer in zip(questions, answers):
-            text = qa_prompt.format(question=question, answer=answer) + EOS_TOKEN
-            texts.append(text)
-        return {"text": texts}
-
-    # Create initial dataset from raw data
-    initial_dataset = Dataset.from_dict({"data": raw_data["data"]})
-    
-    # Apply formatting
-    dataset = initial_dataset.map(formatting_func, batched=True, remove_columns=initial_dataset.column_names)
-
-    # Split dataset into train and eval
-    dataset_split = dataset.train_test_split(test_size=0.1, shuffle=True, seed=3407)
-    train_dataset = dataset_split['train']
-    eval_dataset = dataset_split['test']
+    dataset = prepare_dataset(raw_data, tokenizer)
 
     # Training arguments
     training_args = TrainingArguments(
         output_dir=output_dir,
         num_train_epochs=epochs,
         per_device_train_batch_size=batch_size,
-        per_device_eval_batch_size=batch_size,
         gradient_accumulation_steps=4,
         learning_rate=learning_rate,
         logging_steps=10,
-        save_strategy="epoch",
-        evaluation_strategy="epoch",
-        save_total_limit=2,
-        load_best_model_at_end=True,
         fp16=is_bfloat16_supported(),
+        bf16 = is_bfloat16_supported(),
         warmup_ratio=0.03,
         weight_decay=0.01,
         optim="adamw_8bit",
@@ -136,8 +96,7 @@ def run_training(
     trainer = SFTTrainer(
         model=model,
         tokenizer=tokenizer,
-        train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        train_dataset=dataset,
         dataset_text_field="text",
         max_seq_length=2048,
         dataset_num_proc=2,
@@ -148,21 +107,66 @@ def run_training(
     # Train
     trainer.train()
 
-    # Save model and adapter
-    trainer.save_model()
-    tokenizer.save_pretrained(output_dir)
-    model.save_pretrained(Path(output_dir) / "adapter_model")
+    # Replace the saving code with this:
+    print("Saving model...")
+    try:
+        merged_path = Path(output_dir) / "merged_model"
+        print("Merging and saving full model...")
+        model.save_pretrained_merged(
+            merged_path,
+            tokenizer,
+            save_method="merged_16bit",  #
+        )
+        print(f"✓ Saved merged model to {merged_path}")
+    except Exception as e:
+        print(f"Warning: Could not save merged model: {e}")
+        print("Continuing with GGUF conversion...")
+
+    # Save GGUF version
+    try:
+        gguf_path = Path(output_dir) / "gguf"
+        gguf_path.mkdir(exist_ok=True)
+        print("Converting model to GGUF format...")
+        
+        # Use the adapter model for GGUF conversion
+        model.save_pretrained_gguf(
+            str(gguf_path / "model"),
+            tokenizer,
+            quantization_method="q4_k_m",
+        )
+    except Exception as e:
+        print(f"Warning: Could not save GGUF model: {e}")
+
+    print("Training and saving completed!")
+    print(tokenizer._ollama_modelfile)
+    print(tokenizer._ollama_modelfile.read())
+
+
+def format_instruction(question: str, answer: str) -> str:
+    """Format a single Q&A pair into instruction format"""
+    return f"""You are a helpful assistant. Based on the following question, provide a relevant answer:
+
+### Question:
+{question}
+
+### Response:
+{answer}"""
+
+def prepare_dataset(raw_data: dict, tokenizer):
+    """Prepare dataset from raw data"""
+    formatted_data = []
     
-    # Save in GGUF format
-    gguf_path = Path(output_dir) / "gguf"
-    gguf_path.mkdir(exist_ok=True)
-    
-    print("Converting model to GGUF format...")
-    model.save_pretrained_gguf(
-        str(gguf_path / "model"), 
-        tokenizer,
-        quantization_method="q4_0",
-    )
+    for item in raw_data["data"]:
+        data_dict = json.loads(item["data"])
+        formatted_text = format_instruction(
+            data_dict["question"],
+            data_dict["answer"]
+        )
+        formatted_data.append({"text": formatted_text + tokenizer.eos_token})
+    # Create dataset
+    dataset = Dataset.from_list(formatted_data)
+
+    return dataset
 
 if __name__ == "__main__":
     app = typer.Typer()

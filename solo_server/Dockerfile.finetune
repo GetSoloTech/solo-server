@@ -17,6 +17,8 @@ RUN pip install --no-cache-dir \
     transformers \
     triton \
     bitsandbytes \
+    trl \
+    accelerate \
     unsloth_zoo \
     "unsloth[cu121-torch221] @ git+https://github.com/unslothai/unsloth.git"
 
