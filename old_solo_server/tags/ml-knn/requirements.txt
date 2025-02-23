@@ -1,7 +1,0 @@
-# tags/toy-hello-world/requirements.txt
-torch==2.3
-litserve==0.1.0
-fastapi
-uvicorn
-pydantic
-cog
