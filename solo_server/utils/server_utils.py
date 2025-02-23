@@ -4,7 +4,6 @@ import typer
 import sys
 import time
 import subprocess
-
 from solo_server.config import CONFIG_PATH
 from solo_server.utils.nvidia import is_cuda_toolkit_installed
 from solo_server.utils.llama_cpp_utils import is_uv_available, start_llama_cpp_server
@@ -134,6 +133,7 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
             # Ask user for model name
             default_model = "meta-llama/Llama-3.2-1B-Instruct"
             model_name = typer.prompt(f"Enter the model name", default=default_model)
+
             # Add the model argument and additional parameters
             docker_run_cmd.append("--model")
             docker_run_cmd.append(model_name)
@@ -294,6 +294,14 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
     except ImportError:
         typer.echo("Installing llama.cpp server...")
 
+    # Check if llama-cpp-python is already installed
+    try:
+        import llama_cpp
+        typer.echo("✅ llama-cpp-python is already installed")
+        return start_llama_cpp_server(os_name)
+    except ImportError:
+        typer.echo("Installing llama.cpp server...")
+
     # Set CMAKE_ARGS based on hardware and OS
     cmake_args = []
     if gpu_enabled:
@@ -335,3 +343,4 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ Failed to setup llama.cpp server: {e}", err=True)
         return False
+

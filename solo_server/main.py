@@ -1,6 +1,8 @@
 import typer
 import subprocess
 import shutil
+import socket
+import time
 from enum import Enum
 from pathlib import Path
 from solo_server.utils.docker_utils import start_docker_engine
@@ -41,6 +43,7 @@ def setup():
         type=server_type_prompt,
         default=recmd_server,
     )
+
     # GPU Configuration
     use_gpu = False
     if gpu_vendor in ["NVIDIA", "AMD", "Intel", "Apple Silicon"]:
@@ -68,10 +71,12 @@ def setup():
     # Docker Engine Check
     if server_choice in [ServerType.OLLAMA, ServerType.VLLM]:
         # Check Docker installation
-        if not shutil.which("docker"):
-            typer.echo("❌ Docker is not installed. Please install Docker first.\n", err=True)
+        docker_path = shutil.which("docker")
+        if not docker_path:
+            typer.echo("❌ Docker is not installed or not in the system PATH. Please install Docker first.\n", err=True)
             typer.secho("Install Here: https://docs.docker.com/get-docker/", fg=typer.colors.GREEN)
             raise typer.Exit(code=1)
+
         
         try:
             subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
@@ -85,6 +90,7 @@ def setup():
             except subprocess.CalledProcessError:
                 typer.echo("Try restarting the terminal with admin privileges and close any instances of podman.", err=True)
                 raise typer.Exit(code=1)
+
             
     # Server setup
     try:
@@ -112,10 +118,14 @@ def setup():
             setup_success = setup_llama_cpp_server(use_gpu, gpu_vendor, os_name)
             if setup_success:
                 typer.secho(
-                    "Serve the model & access the API at: http://localhost:8000.\n",
+                    "Access the API at: http://localhost:8000.",
                     fg=typer.colors.BLUE
                 )
-            
+                typer.secho(
+                    "kill the terminal to stop the server.\n",
+                    fg=typer.colors.BLUE
+                )
+
         elif server_choice == ServerType.CUSTOM:
             api_url = typer.prompt("Enter your custom API endpoint")
             api_key = typer.prompt("Enter your API key (optional)", default="")

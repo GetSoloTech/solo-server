@@ -29,6 +29,7 @@ def start_docker_engine(os_name):
 
                     if len(docker_index) >= 2:
                         docker_desktop_path = "\\".join(parts[:docker_index[1] + 1]) + "\\Docker Desktop.exe"
+
                         typer.echo(f"Starting Docker Desktop from: {docker_desktop_path}")
                         subprocess.run(["powershell", "-Command", f"Start-Process '{docker_desktop_path}' -Verb RunAs"], check=True)
                     else:
@@ -56,7 +57,7 @@ def start_docker_engine(os_name):
         while time.time() - start_time < timeout:
             try:
                 subprocess.run(["docker", "info"], check=True, capture_output=True)
-                typer.echo("✅ Docker is running.")
+                typer.echo("✅ Docker is running.\n")
                 return True
             except subprocess.CalledProcessError:
                 time.sleep(5)
@@ -65,6 +66,5 @@ def start_docker_engine(os_name):
         return False
 
     except subprocess.CalledProcessError:
-        typer.echo("❌ Failed to start Docker. Please start Docker with admin privileges manually \
-                   and try to shutdown podman if running.", err=True)
+        typer.echo("❌ Failed to start Docker. Please start Docker with admin privileges manually.", err=True)
         return False
