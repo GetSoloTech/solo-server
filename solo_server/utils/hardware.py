@@ -1,6 +1,7 @@
 import platform
 import psutil
 import GPUtil
+import typer
 import subprocess
 import os
 import json
@@ -63,6 +64,26 @@ def detect_hardware() -> Tuple[str, int, float, str, str, float, str, str]:
             compute_backend = "CPU"
 
     return cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name
+
+def recommended_server(memory_gb, gpu_vendor, gpu_memory) -> str:
+    """
+    Determines the recommended server based on hardware specifications.
+    Returns the recommended server type after displaying the recommendation.
+    """
+    # vLLM recommendation criteria
+    if (gpu_vendor in ["NVIDIA","AMD","Intel"] and gpu_memory >= 8) and (memory_gb >= 16):
+        typer.echo(f"\n✨ vLLM Recommended for your system")
+        return "vLLM"
+    
+    # Ollama recommendation criteria
+    elif (gpu_vendor in ["NVIDIA", "AMD"] and gpu_memory >= 6) or (memory_gb >= 16):
+        typer.echo(f"\n✨ Ollama is recommended for your system")
+        return "ollama"
+    
+    # Llama.cpp recommendation criteria
+    else:
+        typer.echo("\n✨ Llama.cpp is recommended for your system")
+        return "llama.cpp"
 
 def display_hardware_info(typer):
     
@@ -127,3 +148,15 @@ def display_hardware_info(typer):
         title="[bold cyan]System Information[/]"
     )
     console.print(panel)
+
+    # After displaying the hardware panel, show the recommendation
+    recommended_server, reasoning = get_recommended_server()
+    typer.secho(
+        "\n💡 Recommended Server:",
+        fg=typer.colors.BRIGHT_CYAN,
+        bold=True
+    )
+    typer.secho(
+        f"► {recommended_server}: {reasoning}",
+        fg=typer.colors.BRIGHT_GREEN
+    )

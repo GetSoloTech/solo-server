@@ -52,7 +52,7 @@ def start_docker_engine(os_name):
             subprocess.run(["open", "/Applications/Docker.app"], check=True, capture_output=True)
 
         # Wait for Docker to start
-        timeout = 60
+        timeout = 30
         start_time = time.time()
         while time.time() - start_time < timeout:
             try:

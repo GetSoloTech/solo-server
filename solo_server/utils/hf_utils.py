@@ -20,4 +20,3 @@ def get_available_models(repo_id: str, suffix: list[str] | str = ".gguf") -> lis
     except Exception as e:
         typer.echo(f"Error fetching models from {repo_id}: {e}")
         return []
-

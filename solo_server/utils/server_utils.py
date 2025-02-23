@@ -6,12 +6,10 @@ import time
 import subprocess
 from solo_server.config import CONFIG_PATH
 from solo_server.utils.nvidia import is_cuda_toolkit_installed
-from solo_server.utils.llama_cpp_utils import start_llama_cpp_server, is_uv_available
+from solo_server.utils.llama_cpp_utils import is_uv_available, start_llama_cpp_server
 
 def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None, os_name:str = None, port: int = 8000):
     """Setup vLLM server with Docker"""
-    typer.echo("\n🔧 Setting up vLLM server...")
-    
     # Initialize container_exists flag
     container_exists = False
     try:
@@ -30,7 +28,7 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
                 typer.echo("✅ vLLM server is already setup!")
                 return True
             else:
-                remove_container = typer.confirm("vLLM server already exists. Do you want to run with a new model?", default=True)
+                remove_container = typer.confirm("vLLM server already exists. Do you want to run with a new model?", default=False)
                 if remove_container:
                     subprocess.run(["docker", "rm", "solo-vllm"], check=True, capture_output=True)
                 else:
@@ -47,6 +45,11 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
                 subprocess.run(["docker", "pull", "rocm/vllm"], check=True)
             elif cpu == "Apple":
                 subprocess.run(["docker", "pull", "getsolo/vllm-arm"], check=True)
+            elif cpu in ["Intel", "AMD"]:
+                subprocess.run(["docker", "pull", "getsolo/vllm-cpu"], check=True)
+            else:
+                typer.echo("❌ vLLM currently do not support your machine", err=True)
+                return False
             
             # Check if port is available
             try:
@@ -68,8 +71,8 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
                     with open(CONFIG_PATH, 'r') as f:
                         config = json.load(f)
                         hf_token = config.get('hugging_face', {}).get('token', '')
-                    
-            if not hf_token:  # If not in config file, prompt user
+
+            if not hf_token:
                 if os_name in ["Linux", "Windows"]:
                     typer.echo("Use Ctrl + Shift + V to paste your token.")
                 hf_token = typer.prompt("Please add your HuggingFace token (Recommended)")
@@ -121,6 +124,8 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
             elif cpu == "Apple":
                 docker_run_cmd.append("getsolo/vllm-arm")
 
+            elif cpu in ["Intel", "AMD"]:
+                docker_run_cmd.append("getsolo/vllm-cpu")
             else:
                 typer.echo("❌ Solo server vLLM currently do not support your machine", err=True)
                 return False
@@ -128,7 +133,7 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
             # Ask user for model name
             default_model = "meta-llama/Llama-3.2-1B-Instruct"
             model_name = typer.prompt(f"Enter the model name", default=default_model)
-            
+
             # Add the model argument and additional parameters
             docker_run_cmd.append("--model")
             docker_run_cmd.append(model_name)
@@ -141,6 +146,20 @@ def setup_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
         
             typer.echo("🚀 Starting vLLM server...")
             subprocess.run(docker_run_cmd, check=True, capture_output=True)
+            # Check docker logs for any errors
+            try:
+                logs = subprocess.run(
+                    ["docker", "logs", "solo-vllm"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                if logs.stderr:
+                    typer.echo(f"⚠️ Server logs show errors:\n{logs.stderr}", err=True)
+                if logs.stdout:
+                    typer.echo(f"Server logs:\n{logs.stdout}")
+            except subprocess.CalledProcessError as e:
+                typer.echo(f"❌ Failed to fetch docker logs: {e}", err=True)
 
         # Wait for container to be ready with timeout
         timeout = 30
@@ -197,7 +216,6 @@ def setup_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
             else:    
                 subprocess.run(["docker", "start", "solo-ollama"], check=True, capture_output=True)
         else:
-            typer.echo("\n🔧 Setting up Ollama server...")
             # Pull Ollama image
             typer.echo("📥 Pulling Ollama Registry...")
             subprocess.run(["docker", "pull", "ollama/ollama"], check=True)
@@ -268,7 +286,13 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
     gpu_vendor (str, optional): The GPU vendor (e.g., NVIDIA, AMD, Apple Silicon).
     os_name (str, optional): The name of the operating system.
     """
-    typer.echo("\n🔧 Setting up llama_cpp server...")
+     # Check if llama-cpp-python is already installed
+    try:
+        import llama_cpp
+        typer.echo("✅ llama.cpp server is already installed")
+        return start_llama_cpp_server(os_name)
+    except ImportError:
+        typer.echo("Installing llama.cpp server...")
 
     # Check if llama-cpp-python is already installed
     try:
@@ -280,7 +304,6 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
 
     # Set CMAKE_ARGS based on hardware and OS
     cmake_args = []
-
     if gpu_enabled:
         if gpu_vendor == "NVIDIA":
             if not is_cuda_toolkit_installed():
@@ -292,7 +315,7 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
             cmake_args.append("-DGGML_HIPBLAS=on")
         elif gpu_vendor == "Apple Silicon":
             cmake_args.append("-DGGML_METAL=on")
-    
+  
     cmake_args_str = " ".join(cmake_args)
 
     try:
@@ -309,16 +332,15 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
             installer_cmd = [sys.executable, "-m", "pip", "install", "--no-cache-dir", "llama-cpp-python[server]"]
 
         subprocess.check_call(installer_cmd, env=env)
-
         try:
             if start_llama_cpp_server(os_name):
-                typer.echo("\n ✅ llama-cpp server is ready!")
+                typer.echo("\n ✅ llama.cpp server is ready!")
+                return True
         except Exception as e:
-            typer.echo(f"❌ Failed to start llama_cpp server: {e}", err=True)
+            typer.echo(f"❌ Failed to start llama.cpp server: {e}", err=True)
             return False
-        return True
 
     except subprocess.CalledProcessError as e:
-        typer.echo(f"❌ Failed to setup llama_cpp_python server: {e}", err=True)
+        typer.echo(f"❌ Failed to setup llama.cpp server: {e}", err=True)
         return False
 
