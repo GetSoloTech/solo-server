@@ -17,6 +17,21 @@ Solo Server is a lightweight platform that enables users to manage and monitor A
   <img src="assets/logo/solostart.gif" alt="SoloStart">
 </div>
 
+
+| **Category** | **Items** |
+|--------------|-----------|
+| **ML** | PyTorch, TensorFlow, JAX, ONNXRuntime |
+| **LLM** | NanoLLM, Transformers, Ollama, llama.cpp, vLLM, MLC |
+| **VLM** | llava, VILA, LITA |
+| **VIT** | NanoOWL, NanoSAM, Segment Anything (SAM), Track Anything (TAM)|
+| **RAG** | llama-index, langchain, txtai|
+| **Robotics** | ROS, LeRobot, OpenVLA, 3D Diffusion, Policy, Crossformer, MimicGen, OpenDroneMap, ZED |
+| **Graphics** | Cosmos, stable-diffusion-webui |
+| **Mamba** | mamba, mambavision, cobra, dimba, videomambasuite |
+| **Speech** | whisper, whisper_trt, piper, xtts |
+| **Home/IoT** | homeassistant-core, wyoming-whisper, wyoming-openwakeword, wyoming-piper |
+
+
 ## Features
 
 - **Seamless Setup:** Manage your on device AI with a simple CLI and HTTP servers
