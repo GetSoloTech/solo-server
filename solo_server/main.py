@@ -1,18 +1,20 @@
+import os
+import json
 import typer
 import subprocess
 import shutil
+
 from enum import Enum
-from pathlib import Path
+from solo_server.config import CONFIG_PATH
 from solo_server.utils.docker_utils import start_docker_engine
 from solo_server.utils.hardware import detect_hardware, display_hardware_info, recommended_server
 from solo_server.utils.nvidia import check_nvidia_toolkit, install_nvidia_toolkit_linux, install_nvidia_toolkit_windows
-from solo_server.utils.server_utils import setup_vllm_server, setup_ollama_server, setup_llama_cpp_server
+
 
 class ServerType(str, Enum):
     OLLAMA = "Ollama"
     VLLM = "vLLM"
     LLAMACPP = "Llama.cpp"
-    CUSTOM = "Custom API"
 
 def setup():
     """Interactive setup for Solo Server environment"""
@@ -41,6 +43,7 @@ def setup():
         type=server_type_prompt,
         default=recmd_server,
     )
+    
     # GPU Configuration
     use_gpu = False
     if gpu_vendor in ["NVIDIA", "AMD", "Intel", "Apple Silicon"]:
@@ -49,7 +52,6 @@ def setup():
             if not check_nvidia_toolkit(os_name):
                 if typer.confirm("NVIDIA GPU Detected, but GPU drivers not found. Install now?", default=True):
                     if os_name == "Linux":
-                        install_nvidia_toolkit_linux()
                         try:
                             install_nvidia_toolkit_linux()
                         except subprocess.CalledProcessError as e:
@@ -65,7 +67,16 @@ def setup():
                     typer.echo("Falling back to CPU inference.")
                     use_gpu = False
     
-    # Docker Engine Check
+    # Save GPU configuration to config file
+    config = {}
+    if os.path.exists(CONFIG_PATH):
+        with open(CONFIG_PATH, 'r') as f:
+            config = json.load(f)
+    config['hardware'] = {'use_gpu': use_gpu}
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump(config, f, indent=4)
+    
+    # Docker Engine Check for Docker-based servers
     if server_choice in [ServerType.OLLAMA, ServerType.VLLM]:
         # Check Docker installation
         if not shutil.which("docker"):
@@ -89,45 +100,48 @@ def setup():
     # Server setup
     try:
         if server_choice == ServerType.VLLM:
-            setup_success = setup_vllm_server(use_gpu, cpu_model, gpu_vendor)
-            if setup_success:
-                typer.secho(
-                    "Access the API at: http://localhost:8000\n",
-                    fg=typer.colors.BLUE
-                )
-                typer.secho(
-                            "If you experience any issues, check docker logs with 'docker logs solo-vllm'\n",
-                            fg=typer.colors.YELLOW
-                        )
+            # pull the appropriate vLLM image
+            typer.echo("📥 Pulling vLLM image...")
+            if gpu_vendor == "NVIDIA" and use_gpu:
+                subprocess.run(["docker", "pull", "vllm/vllm-openai:latest"], check=True)
+            elif gpu_vendor == "AMD" and use_gpu:
+                subprocess.run(["docker", "pull", "rocm/vllm"], check=True)
+            elif cpu_model and "Apple" in cpu_model:
+                subprocess.run(["docker", "pull", "getsolo/vllm-arm"], check=True)
+            elif cpu_model and any(vendor in cpu_model for vendor in ["Intel", "AMD"]):
+                subprocess.run(["docker", "pull", "getsolo/vllm-cpu"], check=True)
+            else:
+                typer.echo("❌ vLLM currently does not support your machine", err=True)
+                return False
+                
+            typer.secho(
+                "✅ Solo server vLLM setup complete! Use 'solo serve -s vllm -m MODEL_NAME' to start the server.",
+                fg=typer.colors.BRIGHT_GREEN
+            )
             
         elif server_choice == ServerType.OLLAMA:
-            setup_success = setup_ollama_server(use_gpu, gpu_vendor)
-            if setup_success:
-                typer.secho(
-                    "Access the API at: http://localhost:11434\n",
-                    fg=typer.colors.BLUE
-                )
+            # Just pull the Ollama image
+            typer.echo("📥 Pulling Ollama image...")
+            if gpu_vendor == "AMD" and use_gpu:
+                subprocess.run(["docker", "pull", "ollama/ollama-rocm"], check=True)
+            else:
+                subprocess.run(["docker", "pull", "ollama/ollama"], check=True)
+            
+            typer.secho(
+                "✅ Solo server ollama setup complete! \nUse 'solo serve -s ollama -m MODEL_NAME' to start the server.",
+                fg=typer.colors.BRIGHT_GREEN
+            )
             
         elif server_choice == ServerType.LLAMACPP:
-            setup_success = setup_llama_cpp_server(use_gpu, gpu_vendor, os_name)
+            from solo_server.utils.server_utils import setup_llama_cpp_server
+            setup_success = setup_llama_cpp_server(use_gpu, gpu_vendor, os_name, install_only=True)
             if setup_success:
                 typer.secho(
-                    "Serve the model & access the API at: http://localhost:8000.\n",
-                    fg=typer.colors.BLUE
+                    "✅ Solo server llama.cpp setup complete! Use 'solo serve -s llama.cpp -m MODEL_PATH' to start the server.",
+                    fg=typer.colors.BRIGHT_GREEN
                 )
-            
-        elif server_choice == ServerType.CUSTOM:
-            api_url = typer.prompt("Enter your custom API endpoint")
-            api_key = typer.prompt("Enter your API key (optional)", default="")
-            
-            # Save custom configuration
-            config_dir = Path.home() / ".solo"
-            config_dir.mkdir(exist_ok=True)
-            
-            with open(config_dir / "config.ini", "w") as f:
-                f.write(f"[custom]\napi_url={api_url}\napi_key={api_key}\n")
-            
-            typer.secho("\n✅ Custom API configuration saved!", fg=typer.colors.BRIGHT_GREEN)
+            else:
+                typer.echo("❌ Failed to setup llama.cpp", err=True)
     
     except Exception as e:
         typer.echo(f"\n❌ Setup failed: {e}", err=True)

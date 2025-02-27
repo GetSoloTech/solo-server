@@ -196,12 +196,12 @@ def download(
 def run(
     data_path: str = typer.Argument(..., help="Path to the JSON data file"),
     output_dir: str = typer.Option("./finetuned_model", "--output-dir", "-o", help="Directory to save the finetuned model"),
-    batch_size: int = typer.Option(2, "--batch-size", "-b", help="Training batch size"),
-    epochs: int = typer.Option(1, "--epochs", "-e", help="Number of training epochs"),
+    batch_size: int = typer.Option(1, "--batch-size", "-b", help="Training batch size"),
+    epochs: int = typer.Option(2, "--epochs", "-e", help="Number of training epochs"),
     learning_rate: float = typer.Option(2e-4, "--learning-rate", "-lr", help="Learning rate"),
-    lora_r: int = typer.Option(2, "--lora-r", help="LoRA attention dimension"),
+    lora_r: int = typer.Option(8, "--lora-r", help="LoRA attention dimension"),
     lora_alpha: int = typer.Option(8, "--lora-alpha", help="LoRA alpha parameter"),
-    lora_dropout: float = typer.Option(0.05, "--lora-dropout", help="LoRA dropout value"),
+    lora_dropout: float = typer.Option(0.02, "--lora-dropout", help="LoRA dropout value"),
     rebuild_image: bool = typer.Option(False, "--rebuild-image", help="Force rebuild the Docker image"),
 ):
     """
@@ -225,6 +225,7 @@ def run(
             text=True
         ).stdout.strip()
 
+        docker_finetune = "getsolo/finetune:latest"
         if container_exists:
             # Check if container is running
             is_running = subprocess.run(
@@ -239,7 +240,6 @@ def run(
                 subprocess.run(["docker", "start", "solo-finetune"], check=True)
         else:
             # Check if image exists
-            docker_finetune = "getsolo/finetune:latest"
             image_exists = subprocess.run(
                 ["docker", "images", "-q", docker_finetune],
                 capture_output=True,
@@ -296,7 +296,3 @@ def run(
     except Exception as e:
         typer.echo(f"❌ Error: {str(e)}", err=True)
         raise typer.Exit(1)
-
-
-
-
