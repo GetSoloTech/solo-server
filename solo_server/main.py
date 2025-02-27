@@ -79,10 +79,12 @@ def setup():
     # Docker Engine Check for Docker-based servers
     if server_choice in [ServerType.OLLAMA, ServerType.VLLM]:
         # Check Docker installation
-        if not shutil.which("docker"):
-            typer.echo("❌ Docker is not installed. Please install Docker first.\n", err=True)
+        docker_path = shutil.which("docker")
+        if not docker_path:
+            typer.echo("❌ Docker is not installed or not in the system PATH. Please install Docker first.\n", err=True)
             typer.secho("Install Here: https://docs.docker.com/get-docker/", fg=typer.colors.GREEN)
             raise typer.Exit(code=1)
+
         
         try:
             subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
@@ -96,6 +98,7 @@ def setup():
             except subprocess.CalledProcessError:
                 typer.echo("Try restarting the terminal with admin privileges and close any instances of podman.", err=True)
                 raise typer.Exit(code=1)
+
             
     # Server setup
     try:

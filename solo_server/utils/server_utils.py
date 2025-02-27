@@ -5,7 +5,6 @@ import click
 import sys
 import time
 import subprocess
-
 from solo_server.config import CONFIG_PATH
 from solo_server.config.config_loader import load_config, get_server_config, get_timeout_config
 from solo_server.utils.nvidia import is_cuda_toolkit_installed
@@ -511,3 +510,4 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
     except subprocess.CalledProcessError as e:
         typer.echo(f"❌ Failed to setup llama.cpp server: {e}", err=True)
         return False
+
