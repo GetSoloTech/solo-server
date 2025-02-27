@@ -14,6 +14,9 @@ setup(
     url="https://github.com/GetSoloTech/solo-server",
     packages=find_packages(include=["solo_server", "solo_server.*"]),
     include_package_data=True,
+    package_data={
+        "solo_server.config": ["*.yaml"],
+    },
     install_requires=[
         "typer",
         "GPUtil",
