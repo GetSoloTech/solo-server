@@ -1,2 +1,0 @@
-# tags/toy-hello-world/description.txt
-A simple AI model template that returns a fixed description for any image input.
