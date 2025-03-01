@@ -68,6 +68,14 @@ def preprocess_model_path(model_path: str, hf_token: str = None) -> tuple[str, s
         # Repo ID format - auto-append quantization pattern
         return model_path, best_model
 
+def is_llama_cpp_installed():
+    """Check if llama_cpp is installed."""
+    try:
+        import importlib.util
+        return importlib.util.find_spec("llama_cpp") is not None
+    except ImportError:
+        return False
+
 def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: int = None):
     """
     Start the llama.cpp server.
@@ -77,6 +85,11 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
     model_path (str, optional): Path to the model file or HuggingFace repo ID.
     port (int, optional): Port to run the server on.
     """
+    # Check if llama_cpp is installed
+    if not is_llama_cpp_installed():
+        typer.echo("❌ Server not found. Please run 'solo setup' first.", err=True)
+        return False
+        
     # Load llama.cpp configuration from YAML
     llama_cpp_config = get_server_config('llama_cpp')
     

@@ -44,6 +44,7 @@ def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
                     return True
                 else:
                     subprocess.run(["docker", "rm", container_name], check=True, capture_output=True)
+                    container_exists = False
                    
         if not container_exists:
             # Check if port is available
@@ -474,7 +475,7 @@ def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: s
         
         # Install llama-cpp-python using the Python interpreter
         if is_uv_available():
-            use_uv = typer.confirm("uv is available. Are you using (uv's) virtual env for installation?", default=True)
+            use_uv = typer.confirm("uv is available. Are you using (uv's) virtual env for installation?", default=False)
             if use_uv:
                 installer_cmd = ["uv", "pip", "install", "--no-cache-dir", "llama-cpp-python[server]"]
             else:

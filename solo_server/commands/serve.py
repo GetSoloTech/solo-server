@@ -58,7 +58,7 @@ def serve(
         elif server == ServerType.OLLAMA.value:
             model = ollama_config.get('default_model', "llama3.2")
         elif server == ServerType.LLAMACPP.value:
-            model = llama_cpp_config.get('default_model', "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1b-instruct.Q4_K_M.gguf")
+            model = llama_cpp_config.get('default_model', "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1B-Instruct-Q4_K_M.gguf")
     
     if not port:
         if server == ServerType.VLLM.value:

@@ -21,7 +21,7 @@ servers:
       amd: "ollama/ollama:rocm"
   
   llama_cpp:
-    default_model: "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1b-instruct.Q4_K_M.gguf"
+    default_model: "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1B-Instruct-Q4_K_M.gguf"
     default_port: 8080
     cmake_args:
       nvidia: "-DGGML_CUDA=on"
