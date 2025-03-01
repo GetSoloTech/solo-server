@@ -42,6 +42,18 @@ def api_response(model: str, prompt: str, url: str, server_type:str = None) -> d
     if server_type == "ollama":
         payload["model"] = model.lower()
         payload["stream"] = False
+    
+    if server_type == "vllm":
+        payload = {
+            "model": model,
+            "messages": [
+                {
+                    "role": "user",
+                    "content": prompt
+                }
+            ]
+        }
+        
     headers = {"Content-Type": "application/json"}
     start_time = time.time()
     try:
@@ -62,8 +74,9 @@ def run_benchmark(server_type: str, model: object, model_name: str, prompt: str,
         response = model(prompt, stop=["\n"], echo=False)
         eval_duration = time.time() - start_time
         content = response["choices"][0]["text"]
+        print(content)
     else:
-        url = "http://localhost:11434/api/generate" if server_type == "ollama" else "http://localhost:8000/v1/completions"
+        url = "http://localhost:11434/api/generate" if server_type == "ollama" else "http://localhost:8000/v1/chat/completions"
         response = api_response(model_name, prompt, url, server_type)
 
         if server_type == "vllm":
@@ -71,6 +84,7 @@ def run_benchmark(server_type: str, model: object, model_name: str, prompt: str,
                 content = response["choices"][0]["message"]["content"]
             else:
                 content = response["choices"][0]["text"]
+            print(content)
             eval_duration = response.get("eval_duration", 0.0) 
         else:
             content = response.get("response", "")

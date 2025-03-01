@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="solo-server",
-    version="0.3.5",
+    version="0.3.6",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
     description="AIOps for the Physical World.",
@@ -14,6 +14,9 @@ setup(
     url="https://github.com/GetSoloTech/solo-server",
     packages=find_packages(include=["solo_server", "solo_server.*"]),
     include_package_data=True,
+    package_data={
+        "solo_server.config": ["*.yaml"],
+    },
     install_requires=[
         "typer",
         "GPUtil",
@@ -21,7 +24,6 @@ setup(
         "requests", 
         "rich",
         "huggingface_hub",
-        "llama-cpp-python",
         "pydantic", 
     ],
     extras_require={

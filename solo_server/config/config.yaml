@@ -1,0 +1,40 @@
+# Server Configuration
+servers:
+  vllm:
+    default_model: "meta-llama/Llama-3.2-1B-Instruct"
+    default_port: 8000
+    max_model_len: 4096
+    gpu_memory_utilization: 0.95
+    container_name: "solo-vllm"
+    images:
+      nvidia: "vllm/vllm-openai:latest"
+      amd: "rocm/vllm"
+      apple: "getsolo/vllm-arm"
+      cpu: "getsolo/vllm-cpu"
+  
+  ollama:
+    default_model: "llama3.2"
+    default_port: 11434
+    container_name: "solo-ollama"
+    images:
+      default: "ollama/ollama"
+      amd: "ollama/ollama:rocm"
+  
+  llama_cpp:
+    default_model: "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1B-Instruct-Q4_K_M.gguf"
+    default_port: 8080
+    cmake_args:
+      nvidia: "-DGGML_CUDA=on"
+      amd: "-DGGML_HIPBLAS=on"
+      apple_silicon: "-DGGML_METAL=on"
+
+# Paths
+paths:
+  config_dir: "~/.solo_server"
+  config_file: "config.json"
+  logs_dir: "logs"
+
+# Timeouts
+timeouts:
+  server_start: 30
+  docker_check: 20 

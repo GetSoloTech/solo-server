@@ -113,7 +113,7 @@ pip install -e .
 ```
 Run the **interactive setup** to configure Solo Server:
 ```sh
-solo start
+solo setup
 ```
 ### **🔹 Setup Features**
 ✔️ **Detects CPU, GPU, RAM** for **hardware-optimized execution**  
@@ -125,40 +125,45 @@ solo start
 
 **Example Output:**
 ```sh
-🖥️  System Information
-Operating System: Windows
-CPU: AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD
-CPU Cores: 8
-Memory: 15.42GB
-GPU: NVIDIA
-GPU Model: NVIDIA GeForce GTX 1660 Ti
-GPU Memory: 6144.0GB
-Compute Backend: CUDA
+╭────────────────── System Information ──────────────────╮
+│ Operating System: Windows │
+│ CPU: AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD │
+│ CPU Cores: 8 │
+│ Memory: 15.42GB │
+│ GPU: NVIDIA │
+│ GPU Model: NVIDIA GeForce GTX 1660 Ti │
+│ GPU Memory: 6144.0GB │
+│ Compute Backend: CUDA │
+╰────────────────────────────────────────────────────────╯
+🔧 Starting Solo Server Setup...
+📊 Available Server Options:
+• Ollama
+• vLLM
+• Llama.cpp
 
-🚀 Setting up Solo Server...
-✅ Solo server is ready!
+✨ Ollama is recommended for your system
+Choose server [ollama]:
 ```
 
 ---
 
 ## **Commands**
-### **1️⃣ Pull & Run a Model**
-```sh
-solo run llama3.2
-```
-
 ---
 
-### **2️⃣ Serve a Model**
+### **Serve a Model**
 ```sh
-solo serve llama3
+solo serve -s ollama -m llama3.2
 ```
 
-**Access the UI at:**  
-```sh
-http://127.0.0.1:5070  #SOLO_SERVER_PORT
+**Command Options:**
 ```
-
+╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ --server  -s      TEXT     Server type (ollama, vllm, llama.cpp) [default: ollama]                                  │
+│ --model   -m      TEXT     Model name or path [default: None]                                                       │
+│ --port    -p      INTEGER  Port to run the server on [default: None]                                                │
+│ --help                     Show this message and exit.                                                              │
+╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+```
 ---
 
 ## Diagram
@@ -166,7 +171,7 @@ http://127.0.0.1:5070  #SOLO_SERVER_PORT
 ```
 +-------------------+
 |                   |
-| solo run llama3.2 |
+|    solo serve     |
 |                   |
 +---------+---------+
           |
@@ -180,7 +185,7 @@ http://127.0.0.1:5070  #SOLO_SERVER_PORT
                                                       |           |        |
                                                       v           v        v
                                                 +----------+ +----------+ +-------------+
-                                                | Ollama   | | vLLM     | | HuggingFace |
+                                                | Ollama   | | vLLM     | | Llama.cpp   |
                                                 | Registry | | registry | |  Registry   |
                                                 +-----+------+---+------+-++------------+
                                                       |          |         |
@@ -194,40 +199,7 @@ http://127.0.0.1:5070  #SOLO_SERVER_PORT
 ```
 ---
 
-### **3️⃣ Benchmark a Model**
-```sh
-solo benchmark llama3
-```
-
-
-**Example Output:**
-```sh
-Running benchmark for llama3...
-🔹 Model Size: 7B
-🔹 Compute Backend: CUDA
-🔹 Prompt Processing Speed: 1450 tokens/s
-🔹 Text Generation Speed: 135 tokens/s
-
-Running classification accuracy test...
-🔹 Batch 0 Accuracy: 0.7300
-🔹 Batch 1 Accuracy: 0.7520
-🔹 Batch 2 Accuracy: 0.7800
-🔹 Overall Accuracy: 0.7620
-
-Running additional benchmarks...
-🔹 F1 Score: 0.8150
-🔹 Confusion Matrix:
-tensor([[10,  2,  1,  0,  0],
-        [ 1, 12,  0,  0,  0],
-        [ 0,  0, 11,  0,  1],
-        [ 0,  0,  0, 13,  0],
-        [ 0,  0,  0,  0, 15]])
-Benchmarking complete!
-```
-
----
-
-### **4️⃣ Check Model Status**
+### **Check Model Status**
 ```sh
 solo status
 ```
@@ -244,7 +216,7 @@ solo status
 
 ---
 
-### **5️⃣ Stop a Model**
+### **Stop a Model**
 ```sh
 solo stop 
 ```
@@ -273,37 +245,37 @@ Solo Server supports **multiple model sources**, including **Ollama & Hugging Fa
 | **Dragon Mistral 7B**  | `hf://llmware/dragon-mistral-7b-v0`                      |
 
 
-## **⚙️ Configuration (`solo.conf`)**
+## **⚙️ Configuration (`solo.json`)**
 After setup, all settings are stored in:
 ```sh
-~/.solo/solo.conf
+~/.solo_server/solo.json
 ```
 Example:
 ```ini
 # Solo Server Configuration
 
-MODEL_REGISTRY=ramalama
-MODEL_PATH=/home/user/solo/models
-COMPUTE_BACKEND=CUDA
-SERVER_PORT=5070
-LOG_LEVEL=INFO
-
-# Hardware Detection
-CPU_MODEL="Intel i9-13900K"
-CPU_CORES=24
-MEMORY_GB=64
-GPU_VENDOR="NVIDIA"
-GPU_MODEL="RTX 3090"
-
-# API Keys
-NGROK_API_KEY="your-ngrok-key"
-REPLICATE_API_KEY="your-replicate-key"
+{
+    "hugging_face": {
+        "token": ""
+    },
+    "system_info": {
+        "os": "Windows",
+        "cpu_model": "AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD",
+        "cpu_cores": 8,
+        "memory_gb": 15.42,
+        "gpu_vendor": "NVIDIA",
+        "gpu_model": "NVIDIA GeForce GTX 1660 Ti",
+        "gpu_memory": 6144.0,
+        "compute_backend": "CUDA"
+    },
+    "starfish": {
+        "api_key": ""
+    },
+    "hardware": {
+        "use_gpu": true
+    }
+}
 ```
-✅ **Modify this file anytime and run:**
-```sh
-solo setup
-```
-
 ---
 
 ## 📝 Project Inspiration 
