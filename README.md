@@ -166,6 +166,30 @@ solo serve -s ollama -m llama3.2
 ```
 ---
 
+## REST API
+
+You can now use the API endpoint created by the Solo Server to interact with the model. You can send a POST request to `http://localhost:11434/api/chat` with a JSON payload containing the model name and the messages you want to send to the model.
+
+### Generate a response
+
+```shell
+curl http://localhost:11434/api/generate -d '{
+  "model": "llama3.2",
+  "prompt":"Why is the sky blue?"
+}'
+```
+
+### Chat with a model
+
+```shell
+curl http://localhost:11434/api/chat -d '{
+  "model": "llama3.2",
+  "messages": [
+    { "role": "user", "content": "why is the sky blue?" }
+  ]
+}'
+```
+
 ## Diagram
 
 ```
