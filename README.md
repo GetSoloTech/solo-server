@@ -17,29 +17,26 @@ Solo Server is a lightweight platform that enables users to manage and monitor A
   <img src="assets/logo/solostart.gif" alt="SoloStart">
 </div>
 
-
-| **Category** | **Items** |
-|--------------|-----------|
-| **ML** | PyTorch, TensorFlow, JAX, ONNXRuntime |
-| **LLM** | NanoLLM, Transformers, Ollama, llama.cpp, vLLM, MLC |
-| **VLM** | llava, VILA, LITA |
-| **VIT** | NanoOWL, NanoSAM, Segment Anything (SAM), Track Anything (TAM)|
-| **RAG** | llama-index, langchain, txtai|
+| **Category** | **Items**                                                                             |
+| ------------ | ------------------------------------------------------------------------------------- |
+| **ML**       | PyTorch, TensorFlow, JAX, ONNXRuntime                                                 |
+| **LLM**      | NanoLLM, Transformers, Ollama, llama.cpp, vLLM, MLC                                   |
+| **VLM**      | llava, VILA, LITA                                                                     |
+| **VIT**      | NanoOWL, NanoSAM, Segment Anything (SAM), Track Anything (TAM)                        |
+| **RAG**      | llama-index, langchain, txtai                                                         |
 | **Robotics** | ROS, LeRobot, OpenVLA, 3D Diffusion, Policy, Crossformer, MimicGen, OpenDroneMap, ZED |
-| **Graphics** | Cosmos, stable-diffusion-webui |
-| **Mamba** | mamba, mambavision, cobra, dimba, videomambasuite |
-| **Speech** | whisper, whisper_trt, piper, xtts |
-| **Home/IoT** | homeassistant-core, wyoming-whisper, wyoming-openwakeword, wyoming-piper |
-
+| **Graphics** | Cosmos, stable-diffusion-webui                                                        |
+| **Mamba**    | mamba, mambavision, cobra, dimba, videomambasuite                                     |
+| **Speech**   | whisper, whisper_trt, piper, xtts                                                     |
+| **Home/IoT** | homeassistant-core, wyoming-whisper, wyoming-openwakeword, wyoming-piper              |
 
 ## Features
 
 - **Seamless Setup:** Manage your on device AI with a simple CLI and HTTP servers
-- **Open Model Registry:** Pull models from registries like  Ollama & Hugging Face
+- **Open Model Registry:** Pull models from registries like Ollama & Hugging Face
 - **Lean Load Testing:** Built-in commands to benchmark endpoints
 - **Cross-Platform Compatibility:** Deploy AI models effortlessly on your hardware
 - **Configurable Framework:** Auto-detect hardware (CPU, GPU, RAM) and sets configs
-
 
 ## Table of Contents
 
@@ -52,11 +49,13 @@ Solo Server is a lightweight platform that enables users to manage and monitor A
 
 ## Installation
 
-### **🔹Prerequisites** 
+### **🔹Prerequisites**
 
-- **🐋 Docker:** Required for containerization 
+- **🐋 Docker:** Required for containerization
   - [Install Docker](https://docs.docker.com/get-docker/)
+
 ### **🔹 Install via PyPI**
+
 ```sh
 # Make sure you have Python <= 3.12
 python --version  # Should be below 3.13
@@ -69,10 +68,13 @@ source .venv/bin/activate  # On Unix/MacOS
 # OR
 .venv\Scripts\activate # On Windows
 ```
+
 ```
 pip install solo-server
 ```
+
 ### **🔹 Install with `uv` (Recommended)**
+
 ```sh
 # Install uv
 # On Windows (PowerShell)
@@ -89,12 +91,15 @@ source .venv/bin/activate  # On Unix/MacOS
 # OR
 .venv\Scripts\activate     # On Windows
 ```
+
 ```
 uv pip install solo-server
 ```
+
 Creates an isolated environment using `uv` for performance and stability.
 
 ### **🔹 Install in Dev Mode**
+
 ```sh
 # Clone the repository
 git clone https://github.com/GetSoloTech/solo-server.git
@@ -111,19 +116,24 @@ source .venv/bin/activate  # Unix/MacOS
 # Install in editable mode
 pip install -e .
 ```
+
 Run the **interactive setup** to configure Solo Server:
+
 ```sh
 solo setup
 ```
+
 ### **🔹 Setup Features**
+
 ✔️ **Detects CPU, GPU, RAM** for **hardware-optimized execution**  
 ✔️ **Auto-configures `solo.conf` with optimal settings**  
 ✔️ **Requests API keys for Ngrok and Replicate**  
-✔️ **Recommends the compute backend OCI (CUDA, HIP, SYCL, Vulkan, CPU, Metal)**  
+✔️ **Recommends the compute backend OCI (CUDA, HIP, SYCL, Vulkan, CPU, Metal)**
 
 ---
 
 **Example Output:**
+
 ```sh
 ╭────────────────── System Information ──────────────────╮
 │ Operating System: Windows │
@@ -148,14 +158,17 @@ Choose server [ollama]:
 ---
 
 ## **Commands**
+
 ---
 
 ### **Serve a Model**
+
 ```sh
 solo serve -s ollama -m llama3.2
 ```
 
 **Command Options:**
+
 ```
 ╭─ Options ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ --server  -s      TEXT     Server type (ollama, vllm, llama.cpp) [default: ollama]                                  │
@@ -164,46 +177,73 @@ solo serve -s ollama -m llama3.2
 │ --help                     Show this message and exit.                                                              │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
----
+
+## REST API
+
+You can now use the API endpoint created by the Solo Server to interact with the model. You can send a POST request to `http://localhost:11434/api/chat` with a JSON payload containing the model name and the messages you want to send to the model.
+
+### Generate a response
+
+```shell
+curl http://localhost:11434/api/generate -d '{
+  "model": "llama3.2",
+  "prompt":"Why is the sky blue?"
+}'
+```
+
+### Chat with a model
+
+```shell
+curl http://localhost:11434/api/chat -d '{
+  "model": "llama3.2",
+  "messages": [
+    { "role": "user", "content": "why is the sky blue?" }
+  ]
+}'
+```
 
 ## Diagram
 
 ```
+
 +-------------------+
-|                   |
-|    solo serve     |
-|                   |
+| |
+| solo serve |
+| |
 +---------+---------+
-          |
-          |
-          |           +------------------+           +----------------------+
-          |           | Pull inferencing |           |   Pull model layer   |
-          +-----------| runtime (cuda)   |---------->|       llama3.2       | 
-                      +------------------+           +----------------------+
-                                                     |     Repo options     |
-                                                     ++-----------+--------++
-                                                      |           |        |
-                                                      v           v        v
-                                                +----------+ +----------+ +-------------+
-                                                | Ollama   | | vLLM     | | Llama.cpp   |
-                                                | Registry | | registry | |  Registry   |
-                                                +-----+------+---+------+-++------------+
-                                                      |          |         |
-                                                      v          v         v
-                                                      +---------------------+
-                                                      |   Start with        |
-                                                      |   cuda runtime      |
-                                                      |   and               |
-                                                      |   llama3.2          |
-                                                      +---------------------+
-```
+|
+|
+| +------------------+ +----------------------+
+| | Pull inferencing | | Pull model layer |
++-----------| runtime (cuda) |---------->| llama3.2 |
++------------------+ +----------------------+
+| Repo options |
+++-----------+--------++
+| | |
+v v v
++----------+ +----------+ +-------------+
+| Ollama | | vLLM | | Llama.cpp |
+| Registry | | registry | | Registry |
++-----+------+---+------+-++------------+
+| | |
+v v v
++---------------------+
+| Start with |
+| cuda runtime |
+| and |
+| llama3.2 |
++---------------------+
+
+````
 ---
 
 ### **Check Model Status**
 ```sh
 solo status
-```
+````
+
 **Example Output:**
+
 ```sh
 🔹 Running Models:
 -------------------------------------------
@@ -217,10 +257,13 @@ solo status
 ---
 
 ### **Stop a Model**
+
 ```sh
-solo stop 
+solo stop
 ```
+
 **Example Output:**
+
 ```sh
 🛑 Stopping Solo Server...
 ✅ Solo server stopped successfully.
@@ -229,28 +272,32 @@ solo stop
 ---
 
 ## Supported Models
+
 Solo Server supports **multiple model sources**, including **Ollama & Hugging Face**.
 
-| **Model Name**         | **Source**                                                |
-|------------------------|----------------------------------------------------------|
-| **DeepSeek R1**        | `ollama://deepseek-r1`                                   |
-| **IBM Granite 3.1**    | `ollama://granite3.1-dense`                              |
-| **Granite Code 8B**    | `hf://ibm-granite/granite-8b-code-base-4k-GGUF`          |
-| **Granite Code 20B**   | `hf://ibm-granite/granite-20b-code-base-8k-GGUF`         |
-| **Granite Code 34B**   | `hf://ibm-granite/granite-34b-code-base-8k-GGUF`         |
-| **Mistral 7B**         | `hf://TheBloke/Mistral-7B-Instruct-v0.2-GGUF`            |
-| **Mistral 7B v3**      | `hf://MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF`       |
-| **Hermes 2 Pro**       | `hf://NousResearch/Hermes-2-Pro-Mistral-7B-GGUF`        |
-| **Cerebrum 1.0 7B**    | `hf://froggeric/Cerebrum-1.0-7b-GGUF`                    |
-| **Dragon Mistral 7B**  | `hf://llmware/dragon-mistral-7b-v0`                      |
-
+| **Model Name**        | **Source**                                         |
+| --------------------- | -------------------------------------------------- |
+| **DeepSeek R1**       | `ollama://deepseek-r1`                             |
+| **IBM Granite 3.1**   | `ollama://granite3.1-dense`                        |
+| **Granite Code 8B**   | `hf://ibm-granite/granite-8b-code-base-4k-GGUF`    |
+| **Granite Code 20B**  | `hf://ibm-granite/granite-20b-code-base-8k-GGUF`   |
+| **Granite Code 34B**  | `hf://ibm-granite/granite-34b-code-base-8k-GGUF`   |
+| **Mistral 7B**        | `hf://TheBloke/Mistral-7B-Instruct-v0.2-GGUF`      |
+| **Mistral 7B v3**     | `hf://MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF` |
+| **Hermes 2 Pro**      | `hf://NousResearch/Hermes-2-Pro-Mistral-7B-GGUF`   |
+| **Cerebrum 1.0 7B**   | `hf://froggeric/Cerebrum-1.0-7b-GGUF`              |
+| **Dragon Mistral 7B** | `hf://llmware/dragon-mistral-7b-v0`                |
 
 ## **⚙️ Configuration (`solo.json`)**
+
 After setup, all settings are stored in:
+
 ```sh
 ~/.solo_server/solo.json
 ```
+
 Example:
+
 ```ini
 # Solo Server Configuration
 
@@ -276,21 +323,22 @@ Example:
     }
 }
 ```
+
 ---
 
-## 📝 Project Inspiration 
+## 📝 Project Inspiration
 
 This project wouldn't be possible without the help of other projects like:
 
-* uv
-* llama.cpp
-* ramalama
-* ollama
-* whisper.cpp
-* vllm
-* podman
-* huggingface
-* llamafile
-* cog
+- uv
+- llama.cpp
+- ramalama
+- ollama
+- whisper.cpp
+- vllm
+- podman
+- huggingface
+- llamafile
+- cog
 
 Like using Solo, consider leaving us a ⭐ on GitHub
