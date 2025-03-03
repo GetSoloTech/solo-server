@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="solo-server",
-    version="0.3.6",
+    version="0.3.7",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
     description="AIOps for the Physical World.",
