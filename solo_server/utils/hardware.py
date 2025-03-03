@@ -85,6 +85,20 @@ def recommended_server(memory_gb, gpu_vendor, gpu_memory) -> str:
         typer.echo("\n✨ Llama.cpp is recommended for your system")
         return "llama.cpp"
 
+def get_recommended_server(system_info):
+    # Example logic for server recommendation based on system_info
+    if system_info['cpu_cores'] >= 16 and system_info['gpu_memory'] >= 8:
+        recommended_server = "High-Performance Server"
+        reasoning = "Suitable for intensive computational tasks and GPU processing."
+    elif system_info['cpu_cores'] >= 8:
+        recommended_server = "Standard Server"
+        reasoning = "Good for general-purpose tasks."
+    else:
+        recommended_server = "Basic Server"
+        reasoning = "Suitable for lightweight applications."
+
+    return recommended_server, reasoning
+    
 def display_hardware_info(typer):
     
     # Check if system info exists in config file
@@ -135,7 +149,6 @@ def display_hardware_info(typer):
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
 
-    # Display system info
     panel = Panel.fit(
         f"[bold]Operating System:[/] {os_name}\n"
         f"[bold]CPU:[/] {cpu_model}\n"
@@ -150,7 +163,7 @@ def display_hardware_info(typer):
     console.print(panel)
 
     # After displaying the hardware panel, show the recommendation
-    recommended_server, reasoning = get_recommended_server()
+    recommended_server, reasoning = get_recommended_server(system_info)
     typer.secho(
         "\n💡 Recommended Server:",
         fg=typer.colors.BRIGHT_CYAN,
