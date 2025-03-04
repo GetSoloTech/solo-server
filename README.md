@@ -9,27 +9,21 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/solo-server)](https://pypi.org/project/solo-server/)
 [![PyPI - Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
 
+Solo Server is a lightweight server to manage hardware aware inference.
+
 </div>
 
-Solo Server is a lightweight platform that enables users to manage and monitor AI models on their hardware.
 
+```bash
+# Install the solo-server package using pip
+pip install solo-server
+
+# Run the solo server setup in simple mode
+solo setup
+```
 <div align="center">
   <img src="assets/logo/solostart.gif" alt="SoloStart">
 </div>
-
-
-| **Category** | **Items** |
-|--------------|-----------|
-| **ML** | PyTorch, TensorFlow, JAX, ONNXRuntime |
-| **LLM** | NanoLLM, Transformers, Ollama, llama.cpp, vLLM, MLC |
-| **VLM** | llava, VILA, LITA |
-| **VIT** | NanoOWL, NanoSAM, Segment Anything (SAM), Track Anything (TAM)|
-| **RAG** | llama-index, langchain, txtai|
-| **Robotics** | ROS, LeRobot, OpenVLA, 3D Diffusion, Policy, Crossformer, MimicGen, OpenDroneMap, ZED |
-| **Graphics** | Cosmos, stable-diffusion-webui |
-| **Mamba** | mamba, mambavision, cobra, dimba, videomambasuite |
-| **Speech** | whisper, whisper_trt, piper, xtts |
-| **Home/IoT** | homeassistant-core, wyoming-whisper, wyoming-openwakeword, wyoming-piper |
 
 
 ## Features
@@ -56,22 +50,7 @@ Solo Server is a lightweight platform that enables users to manage and monitor A
 
 - **🐋 Docker:** Required for containerization 
   - [Install Docker](https://docs.docker.com/get-docker/)
-### **🔹 Install via PyPI**
-```sh
-# Make sure you have Python <= 3.12
-python --version  # Should be below 3.13
 
-# Create a new virtual environment
-python -m venv .venv
-
-# Activate the virtual environment
-source .venv/bin/activate  # On Unix/MacOS
-# OR
-.venv\Scripts\activate # On Windows
-```
-```
-pip install solo-server
-```
 ### **🔹 Install with `uv` (Recommended)**
 ```sh
 # Install uv
