@@ -52,6 +52,8 @@ solo setup
   - [Install Docker](https://docs.docker.com/get-docker/)
 
 ### **🔹 Install with `uv` (Recommended)**
+Install 'uv' using these docs:
+https://docs.astral.sh/uv/getting-started/installation/
 ```sh
 # Install uv
 # On Windows (PowerShell)
