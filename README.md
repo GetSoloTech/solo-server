@@ -302,6 +302,10 @@ Example:
 ```
 ---
 
+## 📝 Example App 
+Refer example_apps for sample applications.
+1. [ai-chat](https://github.com/GetSoloTech/solo-server/tree/main/example_apps/ai-chat)
+
 ## 📝 Project Inspiration 
 
 This project wouldn't be possible without the help of other projects like:
