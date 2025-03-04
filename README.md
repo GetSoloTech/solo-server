@@ -19,7 +19,7 @@ Solo Server is a lightweight server to manage hardware aware inference.
 pip install solo-server
 
 # Run the solo server setup in simple mode
-solo setup simple
+solo setup
 ```
 <div align="center">
   <img src="assets/logo/solostart.gif" alt="SoloStart">
