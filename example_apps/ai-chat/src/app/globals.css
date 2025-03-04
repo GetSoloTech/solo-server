@@ -1,0 +1,27 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .chat-bubble {
+    @apply px-4 py-2 rounded-lg max-w-[80%] break-words;
+  }
+  
+  .user-bubble {
+    @apply chat-bubble bg-primary text-white self-end rounded-br-none;
+  }
+  
+  .ai-bubble {
+    @apply chat-bubble bg-gray-100 text-gray-800 self-start rounded-bl-none;
+  }
+  
+  .typing-dot {
+    @apply w-2 h-2 bg-gray-500 rounded-full animate-bounce-slow;
+  }
+}
+
+/* Custom animation for typing indicator */
+@keyframes bounce {
+  0%, 80%, 100% { transform: translateY(0); }
+  40% { transform: translateY(-5px); }
+}
