@@ -40,26 +40,34 @@ def setup():
     typer.echo(f"Selected installation type: {install_type}")
 
     if install_type == "simple":
-
+        # Define port to use
+        port = "5070"
+        device_arg = "0"
+        accelerator_arg = "cpu"
+        
         console = Console()
-        run_command(["uv", "pip", "install", "litgpt[download,serve]"],
-                    spinner_message="Solo setup: Installing optimal inference engine, hold tight...")
+        console.print("Solo setup: Installing optimal inference engine, hold tight...")
         run_command(["litgpt", "download", "HuggingFaceTB/SmolLM2-135M-Instruct"],
                     spinner_message="Solo download in progress: Grabbing lightest model...")
         console.print("\n")
+        
+        
         console.print(Panel.fit(
-            "🎉 LIVE: solo server is now live!\n"
-            "🔗 Swagger docs available at: http://127.0.0.1:50700/docs",
+            f"🎉 LIVE: solo server is now live!\n"
+            f"🔗 Swagger docs available at: http://localhost:{port}/docs",
             title="Solo Server", border_style="blue"))
         console.print(
-            "curl -X POST http://127.0.0.1:50700/predict -H 'Content-Type: application/json' -d '{\"prompt\": \"hello Solo\"}'")
+            f"curl -X POST http://127.0.0.1:{port}/predict -H 'Content-Type: application/json' -d '{{\"prompt\": \"hello Solo\"}}'")
+        
         command = [
             "litgpt",
             "serve",
             "HuggingFaceTB/SmolLM2-135M-Instruct",
-            "--port", "50700",
-            "--devices", device_arg
+            "--port", port,
+            "--devices", device_arg,
+            "--accelerator", accelerator_arg
         ]
+        
         process = subprocess.Popen(command)
         print(f"Command is running in the background with PID: {process.pid}")
     else:
