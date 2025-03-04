@@ -58,6 +58,8 @@ https://docs.astral.sh/uv/getting-started/installation/
 # Install uv
 # On Windows (PowerShell)
 iwr https://astral.sh/uv/install.ps1 -useb | iex
+# If you have admin use, consider: https://github.com/astral-sh/uv/issues/3116
+powershell -ExecutionPolicy Bypass -c "pip install uv" 
 
 # On Unix/MacOS
 curl -LsSf https://astral.sh/uv/install.sh | sh
