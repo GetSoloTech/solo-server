@@ -23,6 +23,7 @@ def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
     container_name = vllm_config.get('container_name', 'solo-vllm')
     
     # Initialize container_exists flag
+    typer.echo("Starting Solo server with vLLM...")
     container_exists = False
     try:
         # Check if container exists (running or stopped)
@@ -38,24 +39,22 @@ def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
             is_running = subprocess.run(check_cmd, capture_output=True, text=True).stdout.strip()
             if is_running:
                 subprocess.run(["docker", "stop", container_name], check=True, capture_output=True)
+                subprocess.run(["docker", "rm", container_name], check=True, capture_output=True)
+                container_exists = False
             else:
-                if model == vllm_config.get('default_model', "meta-llama/Llama-3.2-1B-Instruct"):
-                    subprocess.run(["docker", "start", container_name], check=True, capture_output=True)
-                    return True
-                else:
-                    subprocess.run(["docker", "rm", container_name], check=True, capture_output=True)
-                    container_exists = False
+                subprocess.run(["docker", "rm", container_name], check=True, capture_output=True)
+                container_exists = False
                    
         if not container_exists:
             # Check if port is available
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             try:
-                subprocess.run(
-                    ["docker", "run", "--rm", "-p", f"{port}:8000", "alpine", "true"], 
-                    check=True, 
-                    capture_output=True
-                )
-            except subprocess.CalledProcessError:
-                typer.echo(f"❌ Port {port} is already in use", err=True)
+                # Try to bind to the port to check if it's available
+                sock.bind(('127.0.0.1', port))
+                sock.close()
+            except socket.error:
+                typer.echo(f"❌ Port {port} is already in use, try using a different port", err=True)
                 return False
             
             docker_run_cmd = [
@@ -252,22 +251,26 @@ def setup_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
             # Check if container is running
             check_cmd = ["docker", "ps", "-q", "-f", f"name={container_name}"]
             is_running = subprocess.run(check_cmd, capture_output=True, text=True).stdout.strip()
-            if not is_running:  
-                subprocess.run(["docker", "start", container_name], check=True, capture_output=True)
+            if not is_running:
+                subprocess.run(["docker", "rm", container_name], check=True, capture_output=True)
+                container_exists = False
             else:
-                return True
-        else:
-            # Check if port is available
-            try:
-                subprocess.run(
-                    ["docker", "run", "--rm", "-p", f"{port}:{port}", "alpine", "true"], 
-                    check=True, 
-                    capture_output=True
-                )
-            except subprocess.CalledProcessError:
-                typer.echo(f"❌ Port {port} is already in use", err=True)
-                return False
+                subprocess.run(["docker", "stop", container_name], check=True, capture_output=True)
+                subprocess.run(["docker", "rm", container_name], check=True, capture_output=True)
+                container_exists = False
 
+        if not container_exists:
+            # port availability check
+            import socket
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            try:
+                # Try to bind to the port to check if it's available
+                sock.bind(('127.0.0.1', port))
+                sock.close()
+            except socket.error:
+                typer.echo(f"❌ Port {port} is already in use, try using a different port", err=True)
+                return False
+                
             # Get appropriate docker image from config
             if gpu_vendor == "AMD" and gpu_enabled:
                 image = ollama_config.get('images', {}).get('amd', "ollama/ollama:rocm")
