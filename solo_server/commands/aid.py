@@ -1,29 +1,39 @@
 import sys
-import subprocess
 import typer
+from litgpt import LLM
+from rich.console import Console
 
-def aid (query: str):
-    # Check if docker is running
-    try:
-        subprocess.run(["docker", "ps"], capture_output=True, check=True)
-    except subprocess.CalledProcessError:
-        typer.echo("Solo server not running. Please start solo-server first.")
-        return
+console = Console()
+
+def query_llm(query: str):
+    # Check if the query exceeds 9000 characters
+    if len(query) > 9000:
+        typer.echo("Error: Your query exceeds the maximum allowed length of 9000 characters. It's over 9000!")
+        raise typer.Exit(1)
     
-    # Execute the query in the solo-ollama container.
-    try:
-        result = subprocess.run(
-            ["docker", "exec", "solo-ollama", "ollama", "ask", query],
-            capture_output=True, text=True, check=True
-        )
-        typer.echo(result.stdout)
-    except subprocess.CalledProcessError:
-        typer.echo("Failed to get response from the LLM.")
+    # Load the model and generate a response while showing a spinner
+    llm = LLM.load("Qwen/Qwen2.5-1.5B-Instruct")
+    with console.status("Generating response...", spinner="dots"):
+        response = llm.generate(query)
+    typer.echo(response)
+
+def interactive_mode():
+    console.print("Interactive Mode (type 'exit' or 'quit' to end):", style="bold green")
+    while True:
+        query_text = input(">> ")
+        if query_text.lower() in ("exit", "quit"):
+            break
+        query_llm(query_text)
 
 if __name__ == "__main__":
-    # If invoked with ">>" as the first argument, join the remaining tokens as the query.
-    if len(sys.argv) > 1 and sys.argv[1] == ">>":
-        query_text = " ".join(sys.argv[2:])
-        aid(query_text)
+    # If invoked with "@@" as the first argument, treat the rest as the query.
+    # Otherwise, launch interactive mode.
+    if len(sys.argv) > 1 and sys.argv[1] == "@@":
+        if len(sys.argv) > 2:
+            query_text = " ".join(sys.argv[2:])
+        else:
+            typer.echo("Enter your query (end with EOF / Ctrl-D):")
+            query_text = sys.stdin.read().strip()
+        query_llm(query_text)
     else:
-        typer.echo("Usage: solo >> <your query>")
+        interactive_mode()
