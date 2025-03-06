@@ -30,7 +30,6 @@ solo setup
 
 - **Seamless Setup:** Manage your on device AI with a simple CLI and HTTP servers
 - **Open Model Registry:** Pull models from registries like  Ollama & Hugging Face
-- **Lean Load Testing:** Built-in commands to benchmark endpoints
 - **Cross-Platform Compatibility:** Deploy AI models effortlessly on your hardware
 - **Configurable Framework:** Auto-detect hardware (CPU, GPU, RAM) and sets configs
 
@@ -40,9 +39,8 @@ solo setup
 - [Features](#-features)
 - [Installation](#installation)
 - [Commands](#commands)
-- [Supported Models](#supported-models)
-- [Configuration](#configuration)
-- [Project Inspiration](#project-inspiration)
+- [Contribution](#contribution)
+- [ Inspiration](#inspiration)
 
 ## Installation
 
@@ -77,23 +75,6 @@ uv pip install solo-server
 ```
 Creates an isolated environment using `uv` for performance and stability.
 
-### **🔹 Install in Dev Mode**
-```sh
-# Clone the repository
-git clone https://github.com/GetSoloTech/solo-server.git
-
-# Navigate to the directory
-cd solo-server
-
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate  # Unix/MacOS
-# OR
-.venv\Scripts\activate     # Windows
-
-# Install in editable mode
-pip install -e .
-```
 Run the **interactive setup** to configure Solo Server:
 ```sh
 solo setup
@@ -101,7 +82,6 @@ solo setup
 ### **🔹 Setup Features**
 ✔️ **Detects CPU, GPU, RAM** for **hardware-optimized execution**  
 ✔️ **Auto-configures `solo.conf` with optimal settings**  
-✔️ **Requests API keys for Ngrok and Replicate**  
 ✔️ **Recommends the compute backend OCI (CUDA, HIP, SYCL, Vulkan, CPU, Metal)**  
 
 ---
@@ -129,9 +109,10 @@ Choose server [ollama]:
 ```
 
 ---
-## **Solo Server Block Diagram **
-
-![Solo Server Block Diagram](assets/Solo Server.svg)
+## **Solo Server Block Diagram**
+<div align="center">
+  <img src="assets/Solo Server.svg" width="1000"/>
+</div>
 
 ## **Commands**
 ---
@@ -176,39 +157,6 @@ curl http://localhost:11434/api/chat -d '{
 }'
 ```
 
-## Diagram
-
-```
-+-------------------+
-|                   |
-|    solo serve     |
-|                   |
-+---------+---------+
-          |
-          |
-          |           +------------------+           +----------------------+
-          |           | Pull inferencing |           |   Pull model layer   |
-          +-----------| runtime (cuda)   |---------->|       llama3.2       | 
-                      +------------------+           +----------------------+
-                                                     |     Repo options     |
-                                                     ++-----------+--------++
-                                                      |           |        |
-                                                      v           v        v
-                                                +----------+ +----------+ +-------------+
-                                                | Ollama   | | vLLM     | | Llama.cpp   |
-                                                | Registry | | registry | |  Registry   |
-                                                +-----+------+---+------+-++------------+
-                                                      |          |         |
-                                                      v          v         v
-                                                      +---------------------+
-                                                      |   Start with        |
-                                                      |   cuda runtime      |
-                                                      |   and               |
-                                                      |   llama3.2          |
-                                                      +---------------------+
-```
----
-
 ### **Check Model Status**
 ```sh
 solo status
@@ -235,25 +183,6 @@ solo stop
 🛑 Stopping Solo Server...
 ✅ Solo server stopped successfully.
 ```
-
----
-
-## Supported Models
-Solo Server supports **multiple model sources**, including **Ollama & Hugging Face**.
-
-| **Model Name**         | **Source**                                                |
-|------------------------|----------------------------------------------------------|
-| **DeepSeek R1**        | `ollama://deepseek-r1`                                   |
-| **IBM Granite 3.1**    | `ollama://granite3.1-dense`                              |
-| **Granite Code 8B**    | `hf://ibm-granite/granite-8b-code-base-4k-GGUF`          |
-| **Granite Code 20B**   | `hf://ibm-granite/granite-20b-code-base-8k-GGUF`         |
-| **Granite Code 34B**   | `hf://ibm-granite/granite-34b-code-base-8k-GGUF`         |
-| **Mistral 7B**         | `hf://TheBloke/Mistral-7B-Instruct-v0.2-GGUF`            |
-| **Mistral 7B v3**      | `hf://MaziyarPanahi/Mistral-7B-Instruct-v0.3-GGUF`       |
-| **Hermes 2 Pro**       | `hf://NousResearch/Hermes-2-Pro-Mistral-7B-GGUF`        |
-| **Cerebrum 1.0 7B**    | `hf://froggeric/Cerebrum-1.0-7b-GGUF`                    |
-| **Dragon Mistral 7B**  | `hf://llmware/dragon-mistral-7b-v0`                      |
-
 
 ## **⚙️ Configuration (`solo.json`)**
 After setup, all settings are stored in:
@@ -288,9 +217,31 @@ Example:
 ```
 ---
 
-## 📝 Example App 
+## 📝 Highlight Apps 
 Refer example_apps for sample applications.
 1. [ai-chat](https://github.com/GetSoloTech/solo-server/tree/main/example_apps/ai-chat)
+
+
+### **🔹 To Contribute, Setup in Dev Mode**
+
+```sh
+# Clone the repository
+git clone https://github.com/GetSoloTech/solo-server.git
+
+# Navigate to the directory
+cd solo-server
+
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # Unix/MacOS
+# OR
+.venv\Scripts\activate     # Windows
+
+# Install in editable mode
+pip install -e .
+```
+
+
 
 ## 📝 Project Inspiration 
 
@@ -308,13 +259,4 @@ This project wouldn't be possible without the help of other projects like:
 * cog
 
 Like using Solo, consider leaving us a ⭐ on GitHub
-
-## Star History
-<a href="https://star-history.com/#GetSoloTech/solo-server&Date">
- <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=GetSoloTech/solo-server&type=Date&theme=dark" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=GetSoloTech/solo-server&type=Date" />
-   <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=GetSoloTech/solo-server&type=Date" />
- </picture>
-</a>
 
