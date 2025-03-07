@@ -5,6 +5,7 @@ import typer
 import click
 import yaml
 from pathlib import Path
+from tqdm import tqdm
 from rich.console import Console
 from rich.panel import Panel
 from rich.theme import Theme
@@ -61,10 +62,11 @@ def get_hardware_category(memory_gb: float) -> str:
 
 def simulate_model_download(model: str, sleep_time: int = 3) -> str:
     """
-    Simulate model download with a delay.
+    Simulate model download with a progress bar.
+    (sleep_time is in seconds; e.g., 3 sec ~ 0.05 mins)
     """
-    with console.status(f"[info]Downloading model {model}...[/info]", spinner="dots"):
-        time.sleep(sleep_time)
+    for _ in tqdm(range(sleep_time), desc="Downloading model (est. {:.2f} mins)".format(sleep_time/60), unit="sec", total=sleep_time):
+        time.sleep(1)
     return f"[success]Model {model} download complete.[/success]"
 
 def prompt_core_initialization(confirm_fn=typer.confirm) -> bool:
@@ -76,80 +78,77 @@ def prompt_core_initialization(confirm_fn=typer.confirm) -> bool:
         "Yes: Proceed with full initialization and model setup\n"
         "No:  Exit setup"
     )
-    console.print(
-        Panel(init_prompt, title="Core Initialization", border_style="panel.border", box=box.ROUNDED, padding=(1, 2))
-    )
+    console.print(Panel(init_prompt, title="Core Initialization", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
     return confirm_fn("", default=True)
+
+def test_downloaded_model(model: str, run_subprocess_fn=subprocess.run) -> str:
+    """
+    Prompt the user for a test prompt (defaulting to 'solo @@ test') and use the LitGPT CLI
+    to generate sample output from the downloaded model.
+    A progress bar shows the testing duration.
+    """
+    test_prompt = typer.prompt("Enter test prompt", default="solo @@ test")
+    console.print(f"[info]Testing model {model} with prompt: '{test_prompt}'[/info]")
+    for _ in tqdm(range(5), desc="Testing model (est. 0.08 mins)", unit="sec", total=5):
+        time.sleep(1)
+    try:
+        # Assuming the LitGPT CLI provides a generate command.
+        cmd = ["litgpt", "generate", model, "--prompt", test_prompt]
+        result = run_subprocess_fn(cmd, check=True, capture_output=True, text=True)
+        output = result.stdout.strip()
+        console.print(f"[success]Test generation output:[/success]\n{output}")
+        return output
+    except subprocess.CalledProcessError as e:
+        error_output = e.stderr.strip() if e.stderr else str(e)
+        console.print(f"[warning]Test generation failed: {error_output}[/warning]")
+        return ""
 
 def prompt_advanced_modules(confirm_fn=typer.confirm, prompt_fn=typer.prompt) -> (bool, str):
     """
-    Ask user if they want to load advanced modules and select module pack if yes.
+    Ask user if they want to load advanced modules and select a vertical.
+    New verticals include: secure enterprise, healthcare, robotics, and lean ensemble.
     Returns a tuple (advanced_modules, module_pack)
     """
     adv_prompt = (
         "Load advanced modules?\n"
-        "Yes: Load additional functionalities and module packs\n"
+        "Yes: Load additional functionalities for a vertical\n"
         "No:  Skip advanced modules"
     )
-    console.print(
-        Panel(adv_prompt, title="Advanced Modules", border_style="panel.border", box=box.ROUNDED, padding=(1, 2))
-    )
+    console.print(Panel(adv_prompt, title="Advanced Modules", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
     advanced_modules = confirm_fn("", default=True)
     module_pack = None
     if advanced_modules:
         module_pack_info = (
-            "Choose module pack:\n"
-            "pro             - Pro Pack: RAG, LangChain, Transformers\n"
-            "industrial      - Industrial Pack: PyTorch, Tensorflow, vLLM\n"
-            "robotics        - Robotics Pack: ROS, LeRobot, OpenEMMA\n"
-            "custom ensemble - Custom Ensemble: Additional containers\n"
+            "Choose advanced vertical:\n"
+            "secure enterprise - Modules for security and compliance\n"
+            "healthcare        - Modules for healthcare applications\n"
+            "robotics          - Modules for robotics integration\n"
+            "lean ensemble     - A lean set of general modules\n"
             "Enter your choice:"
         )
-        console.print(
-            Panel(module_pack_info, title="Module Pack Options", border_style="panel.border", box=box.ROUNDED, padding=(1, 2))
-        )
-        module_pack = prompt_fn("", type=click.Choice(["pro", "industrial", "robotics", "custom ensemble"], case_sensitive=False), default="pro")
+        console.print(Panel(module_pack_info, title="Vertical Options", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
+        module_pack = prompt_fn("", type=click.Choice(["secure enterprise", "healthcare", "robotics", "lean ensemble"], case_sensitive=False), default="lean ensemble")
     return advanced_modules, module_pack
 
 def build_docker_ensemble(module_pack: str, run_subprocess_fn=subprocess.run):
     """
-    Build an ensemble of Docker images for the selected module pack.
-    Checks if the Dockerfile directory exists.
-    Adjusted to use the path: commands/containers/<module>
+    Build an ensemble of Docker images for the selected vertical.
+    Uses the path: commands/containers/<module> (relative to main.py).
+    A tqdm progress bar shows the estimated duration.
     """
-    docker_modules = {
-        "pro": [
-            "rag",
-            "langchain",
-            "Transformers"
-        ],
-        "industrial": [
-            "PyTorch",
-            "Tensorflow",
-            "vLLM"
-        ],
-        "robotics": [
-            "ROS",
-            "LeRobot",
-            "OpenEMMA"
-        ],
-        "custom ensemble": [
-            "Browser Use",
-            "Computer Use",
-            "Cosmos",
-            "homeassistant-core",
-            "JAX",
-            "LITA",
-            "llama-index"
-        ]
+    # New advanced module packs for different verticals
+    advanced_module_packs = {
+        "secure enterprise": ["auth", "data-encryption", "audit-log"],
+        "healthcare": ["hl7", "fhir-connector", "secure-patient"],
+        "robotics": ["ros", "le-robot", "robotics-core"],
+        "lean ensemble": ["microservice", "edge-ai", "light-transformers"]
     }
-    modules = docker_modules.get(module_pack.lower(), [])
+    modules = advanced_module_packs.get(module_pack.lower(), [])
     if not modules:
-        console.print(f"[warning]No modules found for the '{module_pack}' pack. Adjust your dictionary as needed.[/warning]")
+        console.print(f"[warning]No modules found for vertical '{module_pack}'.[/warning]")
         return
 
-    for module in modules:
-        # Update the build path to use the relative path from main.py.
+    for module in tqdm(modules, desc="Building Docker images (est. 2 mins/module)", unit="module", total=len(modules)):
         build_path = Path("commands") / "containers" / module
         if not build_path.exists():
             console.print(f"[warning]Path {build_path} does not exist. Skipping module {module}.[/warning]")
@@ -158,7 +157,7 @@ def build_docker_ensemble(module_pack: str, run_subprocess_fn=subprocess.run):
         image_tag = module.lower().replace(' ', '-')
         try:
             run_subprocess_fn(
-                ["docker", "build", "-t", f"containers/{image_tag}", str(build_path)],
+                ["docker", "build", "-t", f"ensemble/{image_tag}", str(build_path)],
                 check=True,
                 capture_output=True
             )
@@ -198,7 +197,6 @@ def serve_model(model: str, port: int, run_subprocess_fn=subprocess.run) -> (str
         cmd = ["litgpt", "serve", model, "--port", str(available_port)]
         run_subprocess_fn(cmd, check=True, capture_output=True, text=True)
         success_msg = f"[success]Server started on port {available_port} with model: {model}[/success]"
-        # Print a sample curl command for testing.
         test_curl = f"curl http://localhost:{available_port}/"
         console.print(f"[info]You can test the server with: {test_curl}[/info]")
         return success_msg, available_port
@@ -223,8 +221,6 @@ def get_hardware_info() -> dict:
 
 @app.command()
 def setup(
-    # Although the original flow allowed a model_choice,
-    # we now always use HuggingFaceTB/SmolLM2-1.7B-Instruct.
     model_choice: str = typer.Option(
         None,
         "--model",
@@ -261,10 +257,16 @@ def setup(
     
     console.print("\n")
     
+    # NEW STEP: Test the downloaded model using the solo @@ structure
+    console.print(Panel("Testing downloaded model...", title="Test Model", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
+    test_output = test_downloaded_model(MODEL)
+    
+    console.print("\n")
+    
     # Step 4: Advanced Modules Prompt (optional)
     advanced_modules, module_pack = prompt_advanced_modules()
     if advanced_modules:
-        console.print(f"[info]Module pack selected: {module_pack}[/info]")
+        console.print(f"[info]Vertical selected: {module_pack}[/info]")
     else:
         console.print("[info]Skipping advanced modules.[/info]")
     

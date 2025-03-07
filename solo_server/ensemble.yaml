@@ -9,7 +9,7 @@ hardware:
   memory_gb: 16
 max_new_tokens: 50
 model_choice: null
-module_pack: pro
+module_pack: lean ensemble
 port: 5070
 precision: null
 quantize: null
