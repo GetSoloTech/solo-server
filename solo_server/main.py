@@ -4,7 +4,8 @@ import typer
 import subprocess
 import shutil
 import click
-import sys 
+import socket
+
 
 from enum import Enum
 from solo_server.config import CONFIG_PATH
@@ -14,11 +15,104 @@ from solo_server.utils.nvidia import check_nvidia_toolkit, install_nvidia_toolki
 from solo_server.simple_setup import run_command, detect_gpu
 from rich.console import Console
 from rich.panel import Panel
+from rich.progress import Progress, SpinnerColumn, TextColumn
+
 
 class ServerType(str, Enum):
     OLLAMA = "Ollama"
     VLLM = "vLLM"
     LLAMACPP = "Llama.cpp"
+
+# move to utils
+def choose_smol_model(hardware_specs):
+    """
+    Select the appropriate SmolLM2 model based on the provided hardware specifications.
+    
+    Returns one of:
+      - "HuggingFaceTB/SmolLM2-135M-Instruct"
+      - "HuggingFaceTB/SmolLM2-360M-Instruct"
+      - "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+    """
+    gpu_vendor = hardware_specs.get("gpu_vendor")
+    gpu_memory = hardware_specs.get("gpu_memory")
+    memory_gb = hardware_specs.get("memory_gb", 0)
+    
+    # Prefer GPU memory for decision if available
+    if gpu_vendor and gpu_memory:
+        if gpu_memory >= 8:
+            return "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+        elif gpu_memory >= 4:
+            return "HuggingFaceTB/SmolLM2-360M-Instruct"
+        else:
+            return "HuggingFaceTB/SmolLM2-135M-Instruct"
+    else:
+        # Fallback to CPU memory thresholds
+        if memory_gb >= 16:
+            return "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+        elif memory_gb >= 8:
+            return "HuggingFaceTB/SmolLM2-360M-Instruct"
+        else:
+            return "HuggingFaceTB/SmolLM2-135M-Instruct"
+
+
+# move to utils
+def run_with_spinner(command, spinner_message):
+    """
+    Run a subprocess command while displaying a blue spinner with a custom message.
+    """
+    with Progress(
+        SpinnerColumn(style="blue"),
+        TextColumn("[blue]{task.description}[/blue]"),
+        transient=True,
+    ) as progress:
+        task = progress.add_task(spinner_message, total=None)
+        try:
+            # Run the command and wait for it to complete
+            process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            stdout, stderr = process.communicate()
+        finally:
+            progress.stop()
+    return process, stdout, stderr
+
+def setup_core_llm(hardware_specs):
+    console = Console()
+    port = "5070"
+    device_arg = "0"
+    accelerator_arg = "cpu"
+    
+    console.print("[blue]Solo setup: Installing optimal inference engine, hold tight![/blue]\n")
+
+    selected_model = choose_smol_model(hardware_specs)
+    print(f"Based on your hardware, we recommend downloading: {selected_model}")
+    # Run the download command with a blue spinner
+    download_command = ["litgpt", "download", selected_model]
+    run_with_spinner(download_command, "Solo download in progress: Optimizing model for your hardware")
+    
+    console.print("\n")
+    
+    # Display a blue bordered panel indicating the server is live
+    panel_text = (
+        f"🎉 LIVE: solo server is now live!\n"
+        f"🔗 Swagger docs available at: http://localhost:{port}/docs"
+    )
+    console.print(Panel.fit(panel_text, title="Solo Server", border_style="blue"))
+    
+    # Print the curl command in blue
+    console.print(
+        f"[blue]curl -X POST http://127.0.0.1:{port}/predict -H 'Content-Type: application/json' -d '{{\"prompt\": \"hello Solo\"}}'[/blue]\n"
+    )
+
+    # Start the server process
+    serve_command = [
+        "litgpt",
+        "serve",
+        selected_model,
+        "--port", port,
+        "--devices", device_arg,
+        "--accelerator", accelerator_arg
+    ]
+    process = subprocess.run(serve_command)
+    console.print(f"[blue]Solo server is running on core port 5070 [/blue]")
 
 def setup():
     """Interactive setup for Solo Server environment"""
@@ -35,163 +129,19 @@ def setup():
         print("😎 Solo Mode: No GPU found; rocking CPU mode!")
         device_arg = "0"
     
-    # Ask for installation type
-    install_type = typer.prompt("Choose installation type:", type=click.Choice(['simple', 'advanced'], case_sensitive=False))
-    typer.echo(f"Selected installation type: {install_type}")
 
-    if install_type == "simple":
-        # Define port to use
-        port = "5070"
-        device_arg = "0"
-        accelerator_arg = "cpu"
-        
-        console = Console()
-        console.print("Solo setup: Installing optimal inference engine, hold tight...")
-        run_command(["litgpt", "download", "HuggingFaceTB/SmolLM2-135M-Instruct"],
-                    spinner_message="Solo download in progress: Grabbing lightest model...")
-        console.print("\n")
-        
-        
-        console.print(Panel.fit(
-            f"🎉 LIVE: solo server is now live!\n"
-            f"🔗 Swagger docs available at: http://localhost:{port}/docs",
-            title="Solo Server", border_style="blue"))
-        console.print(
-            f"curl -X POST http://127.0.0.1:{port}/predict -H 'Content-Type: application/json' -d '{{\"prompt\": \"hello Solo\"}}'")
-        
-        command = [
-            "litgpt",
-            "serve",
-            "HuggingFaceTB/SmolLM2-135M-Instruct",
-            "--port", port,
-            "--devices", device_arg,
-            "--accelerator", accelerator_arg
-        ]
-        
-        process = subprocess.Popen(command)
-        print(f"Command is running in the background with PID: {process.pid}")
-    else:
-        # Original code
-        recmd_server = recommended_server(memory_gb, gpu_vendor, gpu_memory) 
-        
-        def server_type_prompt(value: str) -> ServerType:
-            normalized_value = value.lower()
-            for server in ServerType:
-                if server.value.lower() == normalized_value:
-                    return server
-            raise typer.BadParameter(f"Invalid server type: {value}")
+    hardware_specs = {
+        "cpu_model": cpu_model,
+        "cpu_cores": cpu_cores,
+        "memory_gb": memory_gb,
+        "gpu_vendor": gpu_vendor,
+        "gpu_model": gpu_model,
+        "gpu_memory": gpu_memory,
+        "compute_backend": compute_backend,
+        "os_name": os_name
+    }
+    setup_core_llm(hardware_specs)
 
-        server_choice = typer.prompt(
-            "\nChoose server",
-            type=server_type_prompt,
-            default=recmd_server,
-        )
-        
-        # GPU Configuration
-        use_gpu = False
-        if gpu_vendor in ["NVIDIA", "AMD", "Intel", "Apple Silicon"]:
-            use_gpu = True
-            if use_gpu and gpu_vendor == "NVIDIA":
-                if not check_nvidia_toolkit(os_name):
-                    if typer.confirm("NVIDIA GPU Detected, but GPU drivers not found. Install now?", default=True):
-                        if os_name == "Linux":
-                            try:
-                                install_nvidia_toolkit_linux()
-                            except subprocess.CalledProcessError as e:
-                                typer.echo(f"Failed to install NVIDIA toolkit: {e}", err=True)
-                                use_gpu = False
-                        elif os_name == "Windows":
-                            try:
-                                install_nvidia_toolkit_windows()
-                            except subprocess.CalledProcessError as e:
-                                typer.echo(f"Failed to install NVIDIA toolkit: {e}", err=True)
-                                use_gpu = False
-                    else:
-                        typer.echo("Falling back to CPU inference.")
-                        use_gpu = False
-        
-        # Save GPU configuration to config file
-        config = {}
-        if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, 'r') as f:
-                config = json.load(f)
-        config['hardware'] = {'use_gpu': use_gpu}
-        with open(CONFIG_PATH, 'w') as f:
-            json.dump(config, f, indent=4)
-        
-        # Docker Engine Check for Docker-based servers
-        if server_choice in [ServerType.OLLAMA, ServerType.VLLM]:
-            # Check Docker installation
-            docker_path = shutil.which("docker")
-            if not docker_path:
-                typer.echo("Docker is not installed or not in the system PATH. Please install Docker first.\n", err=True)
-                typer.secho("Install Here: https://docs.docker.com/get-docker/", fg=typer.colors.GREEN)
-                raise typer.Exit(code=1)
-
-            
-            try:
-                subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
-            except subprocess.CalledProcessError:
-                typer.echo("Docker daemon is not running. Attempting to start Docker...", err=True)
-                if not start_docker_engine(os_name):
-                    raise typer.Exit(code=1)
-                # Re-check if Docker is running
-                try:
-                    subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
-                except subprocess.CalledProcessError:
-                    typer.echo("Try restarting the terminal with admin privileges and close any instances of podman.", err=True)
-                    raise typer.Exit(code=1)
-
-            
-            
-        # Server setup
-        try:
-            if server_choice == ServerType.VLLM:
-                # pull the appropriate vLLM image
-                typer.echo("Pulling vLLM image...")
-                if gpu_vendor == "NVIDIA" and use_gpu:
-                    subprocess.run(["docker", "pull", "vllm/vllm-openai:latest"], check=True)
-                elif gpu_vendor == "AMD" and use_gpu:
-                    subprocess.run(["docker", "pull", "rocm/vllm"], check=True)
-                elif cpu_model and "Apple" in cpu_model:
-                    subprocess.run(["docker", "pull", "getsolo/vllm-arm"], check=True)
-                elif cpu_model and any(vendor in cpu_model for vendor in ["Intel", "AMD"]):
-                    subprocess.run(["docker", "pull", "getsolo/vllm-cpu"], check=True)
-                else:
-                    typer.echo("vLLM currently does not support your machine", err=True)
-                    return False
-                    
-                typer.secho(
-                    "Solo server vLLM setup complete! Use 'solo serve -s vllm -m MODEL_NAME' to start the server.",
-                    fg=typer.colors.BRIGHT_GREEN
-                )
-                
-            elif server_choice == ServerType.OLLAMA:
-                # Just pull the Ollama image
-                typer.echo("Pulling Ollama image...")
-                if gpu_vendor == "AMD" and use_gpu:
-                    subprocess.run(["docker", "pull", "ollama/ollama-rocm"], check=True)
-                else:
-                    subprocess.run(["docker", "pull", "ollama/ollama"], check=True)
-                
-                typer.secho(
-                    "Solo server ollama setup complete! \nUse 'solo serve -s ollama -m MODEL_NAME' to start the server.",
-                    fg=typer.colors.BRIGHT_GREEN
-                )
-                
-            elif server_choice == ServerType.LLAMACPP:
-                from solo_server.utils.server_utils import setup_llama_cpp_server
-                setup_success = setup_llama_cpp_server(use_gpu, gpu_vendor, os_name, install_only=True)
-                if setup_success:
-                    typer.secho(
-                        "Solo server llama.cpp setup complete! Use 'solo serve -s llama.cpp -m MODEL_PATH' to start the server.",
-                        fg=typer.colors.BRIGHT_GREEN
-                    )
-                else:
-                    typer.echo("Failed to setup llama.cpp", err=True)
-        except Exception as e:
-            typer.echo(f"\nSetup failed: {e}", err=True)
-            raise typer.Exit(code=1)
 
 if __name__ == "__main__":
     typer.run(setup)
