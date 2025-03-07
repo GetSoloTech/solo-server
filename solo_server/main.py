@@ -1,8 +1,10 @@
 import time
 import subprocess
+import socket
 import typer
 import click
 import yaml
+from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.theme import Theme
@@ -10,35 +12,29 @@ from rich import box
 
 app = typer.Typer(help="Solo Server Setup CLI\nA polished CLI for hardware detection, model initialization, and advanced module loading.")
 
-# Define a Google-inspired theme (blue, red, yellow, green)
+# Google-inspired theme
 google_theme = Theme({
-    "header": "bold #4285F4",      # Google Blue
-    "info": "bold #4285F4",        # Google Blue
-    "warning": "bold #DB4437",     # Google Red
-    "success": "bold #0F9D58",     # Google Green
-    "prompt": "bold #F4B400",      # Google Yellow
+    "header": "bold #4285F4",
+    "info": "bold #4285F4",
+    "warning": "bold #DB4437",
+    "success": "bold #0F9D58",
     "panel.border": "bright_blue",
     "panel.title": "bold white"
 })
 console = Console(theme=google_theme)
 
-# Model options mapping (based on your table)
-# Here we assume the "smallest fastest" option for each family:
-MODEL_OPTIONS = {
-    "llama3": "meta-llama/Llama-3.1-1B-Instruct",    # Smallest variant from Llama 3 family
-    "code_llama": "meta-llama/Code-Llama-7B",          # Smallest variant for Code Llama
-    "codegemma": "google/CodeGemma-7B",                # Only one variant for CodeGemma
-    "gemma2": "google/Gemma2-2B",                      # Smallest variant for Gemma 2
-    "phi4": "microsoft/phi-4",                         # Only one option for Phi 4 (14B)
-    "qwen2.5": "qwen2.5/0.5B",                         # Smallest variant for Qwen2.5
-    "qwen2.5_coder": "qwen2.5-coder/0.5B",             # Smallest variant for Qwen2.5 Coder
-    "r1_distill_llama": "deepseek-ai/R1-Distill-Llama-8B"  # Smallest variant for R1 Distill Llama
-}
+# Hard-coded model and starting port
+MODEL = "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+START_PORT = 5070
 
 def print_banner():
     """Display a header banner for the Solo Server CLI."""
     banner_text = """
-
+    ___  _             __      __  _ 
+   / _ \(_)___  ___   / /___  / /_(_)
+  / , _/ / _ \/ -_) / / __/ / __/ / 
+ /_/|_/_/ .__/\__/ /_/\__/  \__/_/  
+       /_/                         
     """
     console.print(Panel(banner_text, style="header", border_style="panel.border", title="SOLO SERVER INIT", box=box.DOUBLE))
 
@@ -63,26 +59,13 @@ def get_hardware_category(memory_gb: float) -> str:
     else:
         return "Maestro"
 
-def auto_select_model(hardware_category: str) -> str:
-    """
-    Auto-select a default model based on hardware category.
-    For each situation, we recommend the smallest and fastest model available.
-    """
-    mapping = {
-        "Fresh Adopter": MODEL_OPTIONS["llama3"],
-        "Mid Range": MODEL_OPTIONS["code_llama"],
-        "High Performance": MODEL_OPTIONS["phi4"],
-        "Maestro": MODEL_OPTIONS["r1_distill_llama"]
-    }
-    return mapping.get(hardware_category, MODEL_OPTIONS["llama3"])
-
-def simulate_model_download(selected_model: str, sleep_time: int = 3):
+def simulate_model_download(model: str, sleep_time: int = 3) -> str:
     """
     Simulate model download with a delay.
     """
-    with console.status(f"[info]Downloading model {selected_model}...[/info]", spinner="dots"):
-        time.sleep(sleep_time)  # Simulate download delay
-    return f"[success]Model {selected_model} download complete.[/success]"
+    with console.status(f"[info]Downloading model {model}...[/info]", spinner="dots"):
+        time.sleep(sleep_time)
+    return f"[success]Model {model} download complete.[/success]"
 
 def prompt_core_initialization(confirm_fn=typer.confirm) -> bool:
     """
@@ -131,6 +114,8 @@ def prompt_advanced_modules(confirm_fn=typer.confirm, prompt_fn=typer.prompt) ->
 def build_docker_ensemble(module_pack: str, run_subprocess_fn=subprocess.run):
     """
     Build an ensemble of Docker images for the selected module pack.
+    Checks if the Dockerfile directory exists.
+    Adjusted to use the path: commands/containers/<module>
     """
     docker_modules = {
         "pro": [
@@ -164,17 +149,16 @@ def build_docker_ensemble(module_pack: str, run_subprocess_fn=subprocess.run):
         return
 
     for module in modules:
+        # Update the build path to use the relative path from main.py.
+        build_path = Path("commands") / "containers" / module
+        if not build_path.exists():
+            console.print(f"[warning]Path {build_path} does not exist. Skipping module {module}.[/warning]")
+            continue
         console.print(f"[info]Building Docker image for module:[/info] {module}")
         image_tag = module.lower().replace(' ', '-')
-        build_path = f"./containers/{module}"
         try:
             run_subprocess_fn(
-                [
-                    "docker", 
-                    "build", 
-                    "-t", f"ensemble/{image_tag}", 
-                    build_path
-                ],
+                ["docker", "build", "-t", f"ensemble/{image_tag}", str(build_path)],
                 check=True,
                 capture_output=True
             )
@@ -182,7 +166,7 @@ def build_docker_ensemble(module_pack: str, run_subprocess_fn=subprocess.run):
         except subprocess.CalledProcessError as e:
             console.print(f"[warning]Docker build failed for module {module}: {e}[/warning]")
 
-def save_setup_info(setup_info: dict, filename: str = "ensemble.yaml"):
+def save_setup_info(setup_info: dict, filename: str = "ensemble.yaml") -> str:
     """
     Save setup information to a YAML file.
     """
@@ -190,40 +174,62 @@ def save_setup_info(setup_info: dict, filename: str = "ensemble.yaml"):
         yaml.dump(setup_info, f)
     return f"[success]Setup information saved to {filename}.[/success]"
 
-def serve_model(model: str, port: int = 5070, run_subprocess_fn=subprocess.run) -> str:
+def get_available_port(start_port: int) -> int:
+    """
+    Return the first available port starting from start_port.
+    """
+    port = start_port
+    while True:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            try:
+                s.bind(("", port))
+                return port
+            except OSError:
+                port += 1
+
+def serve_model(model: str, port: int, run_subprocess_fn=subprocess.run) -> (str, int):
     """
     Serve the model using the LitGPT CLI syntax.
-    Example: litgpt serve meta-llama/Llama-3.1-1B-Instruct --port 5070
+    If the given port is in use, automatically increment to the next available port.
+    Returns a tuple of the success message and the port used.
     """
+    available_port = get_available_port(port)
     try:
-        cmd = ["litgpt", "serve", model, "--port", str(port)]
-        run_subprocess_fn(cmd, check=True)
-        return f"[success]Server started on port {port} with model: {model}[/success]"
+        cmd = ["litgpt", "serve", model, "--port", str(available_port)]
+        run_subprocess_fn(cmd, check=True, capture_output=True, text=True)
+        success_msg = f"[success]Server started on port {available_port} with model: {model}[/success]"
+        # Print a sample curl command for testing.
+        test_curl = f"curl http://localhost:{available_port}/"
+        console.print(f"[info]You can test the server with: {test_curl}[/info]")
+        return success_msg, available_port
     except subprocess.CalledProcessError as e:
-        return f"[warning]Failed to start server: {e}[/warning]"
+        error_output = e.stderr.strip() if e.stderr else str(e)
+        console.print(f"ERROR:    {error_output}")
+        return f"[warning]Failed to start server: {e}[/warning]", available_port
 
-def get_hardware_info():
+def get_hardware_info() -> dict:
     """
     Get hardware information and categorization.
     """
     cpu_model, cpu_cores, memory_gb, gpu_memory = detect_hardware()
     hardware_category = get_hardware_category(memory_gb)
-    hardware_info = {
+    return {
         "cpu_model": cpu_model,
         "cpu_cores": cpu_cores,
         "memory_gb": memory_gb,
         "gpu_memory": gpu_memory,
         "category": hardware_category
     }
-    return hardware_info
 
 @app.command()
 def setup(
+    # Although the original flow allowed a model_choice,
+    # we now always use HuggingFaceTB/SmolLM2-1.7B-Instruct.
     model_choice: str = typer.Option(
         None,
         "--model",
         "-m",
-        help="Optional model choice. Options: " + ", ".join(MODEL_OPTIONS.keys())
+        help="Optional model choice (ignored in this setup; always uses HuggingFaceTB/SmolLM2-1.7B-Instruct)"
     )
 ):
     """Run the full solo server setup."""
@@ -232,7 +238,7 @@ def setup(
     console.print("\n")
 
     # Step 1: Hardware Detection & Categorization
-    typer.echo("[info]Detecting hardware...[/info]")
+    console.print("[info]Detecting hardware...[/info]")
     hardware_info = get_hardware_info()
     hardware_info_str = (
         f"CPU: {hardware_info['cpu_model']} ({hardware_info['cpu_cores']} cores)\n"
@@ -240,71 +246,65 @@ def setup(
         f"GPU Memory: {hardware_info['gpu_memory']} GB\n"
         f"Category: {hardware_info['category']}"
     )
-    console.print(
-        Panel(hardware_info_str, title="Hardware Info", border_style="panel.border", box=box.ROUNDED, padding=(1, 2))
-    )
+    console.print(Panel(hardware_info_str, title="Hardware Info", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
     
     # Step 2: Core Initialization Prompt
     if not prompt_core_initialization():
-        typer.echo("[warning]Exiting setup.[/warning]")
+        console.print("[warning]Exiting setup.[/warning]")
         raise typer.Exit()
     
     console.print("\n")
     
-    # Step 3: Model Selection & Download Simulation
-    if model_choice:
-        # Use user provided model option if valid
-        selected_model = MODEL_OPTIONS.get(model_choice.lower())
-        if not selected_model:
-            typer.echo(f"[warning]Invalid model choice: {model_choice}. Falling back to auto-selection.[/warning]")
-            selected_model = auto_select_model(hardware_info['category'])
-    else:
-        selected_model = auto_select_model(hardware_info['category'])
-    
-    download_message = simulate_model_download(selected_model)
-    typer.echo(download_message)
+    # Step 3: Model Download Simulation (always uses the specified model)
+    download_message = simulate_model_download(MODEL)
+    console.print(download_message)
     
     console.print("\n")
     
-    # Step 4: Advanced Modules Prompt
+    # Step 4: Advanced Modules Prompt (optional)
     advanced_modules, module_pack = prompt_advanced_modules()
     if advanced_modules:
-        typer.echo(f"[info]Module pack selected: {module_pack}[/info]")
+        console.print(f"[info]Module pack selected: {module_pack}[/info]")
     else:
-        typer.echo("[info]Skipping advanced modules.[/info]")
+        console.print("[info]Skipping advanced modules.[/info]")
     
     console.print("\n")
     
-    # Step 5: Save Setup Information to ensemble.yaml
+    # Step 5: Save Setup Information to YAML and print config details
     setup_info = {
+        "checkpoint_dir": str(Path("checkpoints") / MODEL),
+        "devices": 1,
+        "max_new_tokens": 50,
+        "port": START_PORT,  # initial port, actual port may change
+        "precision": None,
+        "quantize": None,
+        "stream": False,
+        "temperature": 0.8,
+        "top_k": 50,
+        "top_p": 1.0,
+        "selected_model": MODEL,
         "hardware": hardware_info,
-        "selected_model": selected_model,
         "advanced_modules": advanced_modules,
         "module_pack": module_pack,
         "model_choice": model_choice
     }
     save_message = save_setup_info(setup_info)
-    typer.echo(save_message)
+    console.print(save_message)
+    console.print(setup_info)
     
-    # Step 6: Docker Ensemble Build for Advanced Modules
+    # Step 6: Docker Ensemble Build for Advanced Modules (if enabled)
     if advanced_modules and module_pack:
-        console.print(
-            Panel("Starting Docker builds for advanced modules...", title="Docker Ensemble", border_style="panel.border", box=box.ROUNDED, padding=(1, 2))
-        )
+        console.print(Panel("Starting Docker builds for advanced modules...", title="Docker Ensemble", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
         build_docker_ensemble(module_pack)
     
     console.print("\n")
-    console.print(
-        Panel("Solo core initialization complete!", title="Setup Complete", border_style="panel.border", box=box.ROUNDED, padding=(1, 2))
-    )
+    console.print(Panel("Solo core initialization complete!", title="Setup Complete", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
     console.print("\n")
     
-    # Step 7: Serve the Model using LitGPT CLI syntax
-    console.print(
-        Panel(f"Starting server on port 5070 with model: {selected_model}", title="Server", border_style="panel.border", box=box.ROUNDED, padding=(1, 2))
-    )
-    server_message = serve_model(selected_model, port=5070)
-    typer.echo(server_message)
+    # Step 7: Serve the Model using LitGPT CLI syntax and capture errors gracefully
+    console.print(Panel(f"Starting server with model: {MODEL}", title="Server", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
+    server_message, used_port = serve_model(MODEL, port=START_PORT)
+    console.print(server_message)
 
 if __name__ == "__main__":
     app()
