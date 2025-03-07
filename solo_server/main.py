@@ -158,7 +158,7 @@ def build_docker_ensemble(module_pack: str, run_subprocess_fn=subprocess.run):
         image_tag = module.lower().replace(' ', '-')
         try:
             run_subprocess_fn(
-                ["docker", "build", "-t", f"ensemble/{image_tag}", str(build_path)],
+                ["docker", "build", "-t", f"containers/{image_tag}", str(build_path)],
                 check=True,
                 capture_output=True
             )
