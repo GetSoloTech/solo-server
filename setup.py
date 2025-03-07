@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="solo-server",
-    version="0.4.0",
+    version="0.4.1",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
     description="Platform for Hardware Aware Inference.",
