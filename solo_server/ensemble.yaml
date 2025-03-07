@@ -5,5 +5,6 @@ hardware:
   cpu_model: Intel i7
   gpu_memory: 4
   memory_gb: 16
+model_choice: null
 module_pack: pro
-selected_model: microsoft/phi-2
+selected_model: microsoft/phi-4
