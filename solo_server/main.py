@@ -1,6 +1,8 @@
 import time
+import subprocess
 import typer
 import click
+import yaml
 from rich.console import Console
 from rich.panel import Panel
 from rich.theme import Theme
@@ -39,6 +41,73 @@ def get_hardware_category(memory_gb: float) -> str:
         return "High Performance"
     else:
         return "Maestro"
+
+def build_docker_ensemble(module_pack: str):
+    """
+    Build an ensemble of Docker images for the selected module pack.
+    The Dockerfiles are organized in subfolders within the "containers" folder.
+    
+    Adjust this dictionary to match the folders in your "containers/" directory
+    and how you want them grouped by module pack.
+    """
+    docker_modules = {
+        # Example grouping (adjust as needed):
+        "pro": [
+            "rag",
+            "langchain",
+            "Transformers"
+        ],
+        "industrial": [
+            "PyTorch",
+            "Tensorflow",
+            "vLLM"
+        ],
+        "robotics": [
+            "ROS",
+            "LeRobot",
+            "OpenEMMA"
+        ],
+        # You can place additional folders here for a "custom ensemble"
+        "custom ensemble": [
+            "Browser Use",
+            "Computer Use",
+            "Cosmos",
+            "homeassistant-core",
+            "JAX",
+            "LITA",
+            "llama-index"
+        ]
+    }
+
+    modules = docker_modules.get(module_pack.lower(), [])
+    if not modules:
+        console.print(f"[magenta]No modules found for the '{module_pack}' pack. Adjust your dictionary as needed.[/magenta]")
+        return
+    
+    for module in modules:
+        console.print(f"[bright_blue]Building Docker image for module:[/bright_blue] {module}")
+        
+        # Replace spaces in the module name when creating the image tag
+        image_tag = module.lower().replace(' ', '-')
+        
+        # If your folder name has spaces, you may need to quote or escape them.
+        # Here we assume your OS can handle the direct string (Linux usually can with a directory rename).
+        build_path = f"./containers/{module}"
+        
+        try:
+            subprocess.run(
+                [
+                    "docker", 
+                    "build", 
+                    "-t", f"ensemble/{image_tag}", 
+                    build_path
+                ],
+                check=True,
+                capture_output=True
+            )
+            console.print(f"[bright_cyan]Successfully built image for:[/bright_cyan] {module}")
+        except subprocess.CalledProcessError as e:
+            console.print(f"[warning]Docker build failed for module {module}: {e}[/warning]")
 
 @app.command()
 def setup():
@@ -96,13 +165,15 @@ def setup():
     console.print(
         Panel(adv_prompt, title="Advanced Modules", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
     )
-    if typer.confirm("", default=True):
+    advanced_modules = typer.confirm("", default=True)
+    module_pack = None
+    if advanced_modules:
         module_pack_info = (
             "Choose module pack:\n"
-            "pro             - Pro Pack: RAG, OCR, and Voice Models\n"
-            "industrial      - Industrial Pack: CV, Search, and Video Models\n"
-            "robotics        - Robotics Pack: ROS, OpenEMMA, and Advanced Models\n"
-            "custom ensemble - Custom Ensemble: Paid option for tailored modules\n"
+            "pro             - Pro Pack: RAG, LangChain, Transformers\n"
+            "industrial      - Industrial Pack: PyTorch, Tensorflow, vLLM\n"
+            "robotics        - Robotics Pack: ROS, LeRobot, OpenEMMA\n"
+            "custom ensemble - Custom Ensemble: A variety of additional containers\n"
             "Enter your choice:"
         )
         console.print(
@@ -114,12 +185,38 @@ def setup():
         typer.echo("Skipping advanced modules.")
     
     console.print("\n")
+    
+    # Step 5: Save Setup Information to ensemble.yaml
+    setup_info = {
+        "hardware": {
+            "cpu_model": cpu_model,
+            "cpu_cores": cpu_cores,
+            "memory_gb": memory_gb,
+            "gpu_memory": gpu_memory,
+            "category": hardware_category
+        },
+        "selected_model": selected_model,
+        "advanced_modules": advanced_modules,
+        "module_pack": module_pack
+    }
+    with open("ensemble.yaml", "w") as f:
+        yaml.dump(setup_info, f)
+    typer.echo("Setup information saved to ensemble.yaml.")
+    
+    # Step 6: If advanced modules enabled, start Docker ensemble builds
+    if advanced_modules and module_pack:
+        console.print(
+            Panel("Starting Docker builds for advanced modules...", title="Docker Ensemble", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+        )
+        build_docker_ensemble(module_pack)
+    
+    console.print("\n")
     console.print(
         Panel("Solo core initialization complete!", title="Setup Complete", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
     )
     console.print("\n")
     
-    # Step 5: Load the LLM using litgpt
+    # Step 7: Load the LLM using litgpt
     console.print(
         Panel(f"Loading LLM model: {selected_model}", title="LLM Load", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
     )
@@ -130,7 +227,7 @@ def setup():
         typer.echo(f"Failed to load LLM: {e}")
         raise typer.Exit()
     
-    # Step 6: Start the server on port 5070
+    # Step 8: Start the server on port 5070
     console.print(
         Panel(f"Starting server on port 5070 with model: {selected_model}", title="Server", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
     )
@@ -139,7 +236,7 @@ def setup():
     except Exception as e:
         typer.echo(f"Failed to start server: {e}")
     
-    # Step 7: Optionally Generate Text
+    # Step 9: Optionally Generate Text
     prompt_text = typer.prompt(
         "Enter a prompt to generate text (default: 'Fix the spelling: Every fall, the familly goes to the mountains.')",
         default="Fix the spelling: Every fall, the familly goes to the mountains."

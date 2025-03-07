@@ -1,0 +1,9 @@
+advanced_modules: true
+hardware:
+  category: High Performance
+  cpu_cores: 8
+  cpu_model: Intel i7
+  gpu_memory: 4
+  memory_gb: 16
+module_pack: pro
+selected_model: microsoft/phi-2
