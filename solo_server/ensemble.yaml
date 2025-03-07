@@ -1,0 +1,20 @@
+advanced_modules: true
+checkpoint_dir: checkpoints/HuggingFaceTB/SmolLM2-1.7B-Instruct
+devices: 1
+hardware:
+  category: High Performance
+  cpu_cores: 8
+  cpu_model: Intel i7
+  gpu_memory: 4
+  memory_gb: 16
+max_new_tokens: 50
+model_choice: null
+module_pack: robotics
+port: 5070
+precision: null
+quantize: null
+selected_model: HuggingFaceTB/SmolLM2-1.7B-Instruct
+stream: false
+temperature: 0.8
+top_k: 50
+top_p: 1.0
