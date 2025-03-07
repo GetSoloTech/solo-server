@@ -1,197 +1,156 @@
-import os
-import json
+import time
 import typer
-import subprocess
-import shutil
 import click
-import sys 
-
-from enum import Enum
-from solo_server.config import CONFIG_PATH
-from solo_server.utils.docker_utils import start_docker_engine
-from solo_server.utils.hardware import detect_hardware, display_hardware_info, recommended_server
-from solo_server.utils.nvidia import check_nvidia_toolkit, install_nvidia_toolkit_linux, install_nvidia_toolkit_windows
-from solo_server.simple_setup import run_command, detect_gpu
 from rich.console import Console
 from rich.panel import Panel
+from rich.theme import Theme
+from rich import box
+from litgpt import LLM  # Requires: pip install 'litgpt[all]'
 
-class ServerType(str, Enum):
-    OLLAMA = "Ollama"
-    VLLM = "vLLM"
-    LLAMACPP = "Llama.cpp"
+app = typer.Typer()
 
+# Define a custom neon blue theme
+solo_theme = Theme({
+    "info": "bold bright_blue",
+    "warning": "bold magenta",
+    "success": "bold bright_blue",
+    "panel.border": "bright_blue",
+    "panel.title": "bright_cyan"
+})
+console = Console(theme=solo_theme)
+
+def detect_hardware():
+    """
+    Dummy hardware detection function.
+    Replace with your actual hardware detection logic.
+    """
+    cpu_model = "Intel i7"
+    cpu_cores = 8
+    memory_gb = 16  # Example value
+    gpu_memory = 4  # Example value (in GB)
+    return cpu_model, cpu_cores, memory_gb, gpu_memory
+
+def get_hardware_category(memory_gb: float) -> str:
+    if memory_gb < 8:
+        return "Fresh Adopter"
+    elif memory_gb < 16:
+        return "Mid Range"
+    elif memory_gb < 32:
+        return "High Performance"
+    else:
+        return "Maestro"
+
+@app.command()
 def setup():
-    """Interactive setup for Solo Server environment"""
-    # Display hardware info
-    display_hardware_info(typer)
-    cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name = detect_hardware()
+    console.print("\n")
     
-    typer.echo("\nStarting Solo Server Setup...\n")
-    gpu = detect_gpu()
-    if gpu:
-        print("💻 Solo Sighting: GPU detected ->", gpu)
-        device_arg = "1"
-    else:
-        print("😎 Solo Mode: No GPU found; rocking CPU mode!")
-        device_arg = "0"
+    # Step 1: Hardware Detection & Categorization
+    typer.echo("Detecting hardware...")
+    cpu_model, cpu_cores, memory_gb, gpu_memory = detect_hardware()
+    hardware_category = get_hardware_category(memory_gb)
+    hardware_info = (
+        f"CPU: {cpu_model} ({cpu_cores} cores)\n"
+        f"Memory: {memory_gb} GB\n"
+        f"GPU Memory: {gpu_memory} GB\n"
+        f"Category: {hardware_category}"
+    )
+    console.print(
+        Panel(hardware_info, title="Hardware Info", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+    )
     
-    # Ask for installation type
-    install_type = typer.prompt("Choose installation type:", type=click.Choice(['simple', 'advanced'], case_sensitive=False))
-    typer.echo(f"Selected installation type: {install_type}")
-
-    if install_type == "simple":
-        # Define port to use
-        port = "5070"
-        device_arg = "0"
-        accelerator_arg = "cpu"
-        
-        console = Console()
-        console.print("Solo setup: Installing optimal inference engine, hold tight...")
-        run_command(["litgpt", "download", "HuggingFaceTB/SmolLM2-135M-Instruct"],
-                    spinner_message="Solo download in progress: Grabbing lightest model...")
-        console.print("\n")
-        
-        
-        console.print(Panel.fit(
-            f"🎉 LIVE: solo server is now live!\n"
-            f"🔗 Swagger docs available at: http://localhost:{port}/docs",
-            title="Solo Server", border_style="blue"))
-        console.print(
-            f"curl -X POST http://127.0.0.1:{port}/predict -H 'Content-Type: application/json' -d '{{\"prompt\": \"hello Solo\"}}'")
-        
-        command = [
-            "litgpt",
-            "serve",
-            "HuggingFaceTB/SmolLM2-135M-Instruct",
-            "--port", port,
-            "--devices", device_arg,
-            "--accelerator", accelerator_arg
-        ]
-        
-        process = subprocess.Popen(command)
-        print(f"Command is running in the background with PID: {process.pid}")
-    else:
-        # Original code
-        recmd_server = recommended_server(memory_gb, gpu_vendor, gpu_memory) 
-        
-        def server_type_prompt(value: str) -> ServerType:
-            normalized_value = value.lower()
-            for server in ServerType:
-                if server.value.lower() == normalized_value:
-                    return server
-            raise typer.BadParameter(f"Invalid server type: {value}")
-
-        server_choice = typer.prompt(
-            "\nChoose server",
-            type=server_type_prompt,
-            default=recmd_server,
+    # Step 2: Core Initialization Prompt
+    init_prompt = (
+        "Continue to solo core initialization?\n"
+        "Yes: Proceed with full initialization and model setup\n"
+        "No:  Exit setup"
+    )
+    console.print(
+        Panel(init_prompt, title="Core Initialization", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+    )
+    if not typer.confirm("", default=True):
+        typer.echo("Exiting setup.")
+        raise typer.Exit()
+    
+    console.print("\n")
+    
+    # Step 3: Model Selection & Download Simulation
+    model_map = {
+        "Fresh Adopter": "SmolLM2-135M",
+        "Mid Range": "Qwen2.5-0.5B",
+        "High Performance": "microsoft/phi-2",
+        "Maestro": "Deepseek-r1"
+    }
+    selected_model = model_map.get(hardware_category, "SmolLM2-135M")
+    with console.status(f"Downloading model {selected_model}...", spinner="dots", spinner_style="bold bright_blue"):
+        time.sleep(3)  # Simulate download delay
+    typer.echo(f"Model {selected_model} download complete.")
+    
+    console.print("\n")
+    
+    # Step 4: Advanced Modules Prompt
+    adv_prompt = (
+        "Load advanced modules?\n"
+        "Yes: Load additional functionalities and module packs\n"
+        "No:  Skip advanced modules"
+    )
+    console.print(
+        Panel(adv_prompt, title="Advanced Modules", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+    )
+    if typer.confirm("", default=True):
+        module_pack_info = (
+            "Choose module pack:\n"
+            "pro             - Pro Pack: RAG, OCR, and Voice Models\n"
+            "industrial      - Industrial Pack: CV, Search, and Video Models\n"
+            "robotics        - Robotics Pack: ROS, OpenEMMA, and Advanced Models\n"
+            "custom ensemble - Custom Ensemble: Paid option for tailored modules\n"
+            "Enter your choice:"
         )
-        
-        # GPU Configuration
-        use_gpu = False
-        if gpu_vendor in ["NVIDIA", "AMD", "Intel", "Apple Silicon"]:
-            use_gpu = True
-            if use_gpu and gpu_vendor == "NVIDIA":
-                if not check_nvidia_toolkit(os_name):
-                    if typer.confirm("NVIDIA GPU Detected, but GPU drivers not found. Install now?", default=True):
-                        if os_name == "Linux":
-                            try:
-                                install_nvidia_toolkit_linux()
-                            except subprocess.CalledProcessError as e:
-                                typer.echo(f"Failed to install NVIDIA toolkit: {e}", err=True)
-                                use_gpu = False
-                        elif os_name == "Windows":
-                            try:
-                                install_nvidia_toolkit_windows()
-                            except subprocess.CalledProcessError as e:
-                                typer.echo(f"Failed to install NVIDIA toolkit: {e}", err=True)
-                                use_gpu = False
-                    else:
-                        typer.echo("Falling back to CPU inference.")
-                        use_gpu = False
-        
-        # Save GPU configuration to config file
-        config = {}
-        if os.path.exists(CONFIG_PATH):
-            with open(CONFIG_PATH, 'r') as f:
-                config = json.load(f)
-        config['hardware'] = {'use_gpu': use_gpu}
-        with open(CONFIG_PATH, 'w') as f:
-            json.dump(config, f, indent=4)
-        
-        # Docker Engine Check for Docker-based servers
-        if server_choice in [ServerType.OLLAMA, ServerType.VLLM]:
-            # Check Docker installation
-            docker_path = shutil.which("docker")
-            if not docker_path:
-                typer.echo("Docker is not installed or not in the system PATH. Please install Docker first.\n", err=True)
-                typer.secho("Install Here: https://docs.docker.com/get-docker/", fg=typer.colors.GREEN)
-                raise typer.Exit(code=1)
-
-            
-            try:
-                subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
-            except subprocess.CalledProcessError:
-                typer.echo("Docker daemon is not running. Attempting to start Docker...", err=True)
-                if not start_docker_engine(os_name):
-                    raise typer.Exit(code=1)
-                # Re-check if Docker is running
-                try:
-                    subprocess.run(["docker", "info"], check=True, capture_output=True, timeout=20)
-                except subprocess.CalledProcessError:
-                    typer.echo("Try restarting the terminal with admin privileges and close any instances of podman.", err=True)
-                    raise typer.Exit(code=1)
-
-            
-            
-        # Server setup
-        try:
-            if server_choice == ServerType.VLLM:
-                # pull the appropriate vLLM image
-                typer.echo("Pulling vLLM image...")
-                if gpu_vendor == "NVIDIA" and use_gpu:
-                    subprocess.run(["docker", "pull", "vllm/vllm-openai:latest"], check=True)
-                elif gpu_vendor == "AMD" and use_gpu:
-                    subprocess.run(["docker", "pull", "rocm/vllm"], check=True)
-                elif cpu_model and "Apple" in cpu_model:
-                    subprocess.run(["docker", "pull", "getsolo/vllm-arm"], check=True)
-                elif cpu_model and any(vendor in cpu_model for vendor in ["Intel", "AMD"]):
-                    subprocess.run(["docker", "pull", "getsolo/vllm-cpu"], check=True)
-                else:
-                    typer.echo("vLLM currently does not support your machine", err=True)
-                    return False
-                    
-                typer.secho(
-                    "Solo server vLLM setup complete! Use 'solo serve -s vllm -m MODEL_NAME' to start the server.",
-                    fg=typer.colors.BRIGHT_GREEN
-                )
-                
-            elif server_choice == ServerType.OLLAMA:
-                # Just pull the Ollama image
-                typer.echo("Pulling Ollama image...")
-                if gpu_vendor == "AMD" and use_gpu:
-                    subprocess.run(["docker", "pull", "ollama/ollama-rocm"], check=True)
-                else:
-                    subprocess.run(["docker", "pull", "ollama/ollama"], check=True)
-                
-                typer.secho(
-                    "Solo server ollama setup complete! \nUse 'solo serve -s ollama -m MODEL_NAME' to start the server.",
-                    fg=typer.colors.BRIGHT_GREEN
-                )
-                
-            elif server_choice == ServerType.LLAMACPP:
-                from solo_server.utils.server_utils import setup_llama_cpp_server
-                setup_success = setup_llama_cpp_server(use_gpu, gpu_vendor, os_name, install_only=True)
-                if setup_success:
-                    typer.secho(
-                        "Solo server llama.cpp setup complete! Use 'solo serve -s llama.cpp -m MODEL_PATH' to start the server.",
-                        fg=typer.colors.BRIGHT_GREEN
-                    )
-                else:
-                    typer.echo("Failed to setup llama.cpp", err=True)
-        except Exception as e:
-            typer.echo(f"\nSetup failed: {e}", err=True)
-            raise typer.Exit(code=1)
+        console.print(
+            Panel(module_pack_info, title="Module Pack Options", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+        )
+        module_pack = typer.prompt("", type=click.Choice(["pro", "industrial", "robotics", "custom ensemble"], case_sensitive=False), default="pro")
+        typer.echo(f"Module pack selected: {module_pack}")
+    else:
+        typer.echo("Skipping advanced modules.")
+    
+    console.print("\n")
+    console.print(
+        Panel("Solo core initialization complete!", title="Setup Complete", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+    )
+    console.print("\n")
+    
+    # Step 5: Load the LLM using litgpt
+    console.print(
+        Panel(f"Loading LLM model: {selected_model}", title="LLM Load", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+    )
+    try:
+        llm = LLM.load(selected_model)
+        typer.echo("LLM loaded successfully.")
+    except Exception as e:
+        typer.echo(f"Failed to load LLM: {e}")
+        raise typer.Exit()
+    
+    # Step 6: Start the server on port 5070
+    console.print(
+        Panel(f"Starting server on port 5070 with model: {selected_model}", title="Server", border_style="bright_blue", box=box.ROUNDED, padding=(1, 2))
+    )
+    try:
+        llm.serve(port=5070)
+    except Exception as e:
+        typer.echo(f"Failed to start server: {e}")
+    
+    # Step 7: Optionally Generate Text
+    prompt_text = typer.prompt(
+        "Enter a prompt to generate text (default: 'Fix the spelling: Every fall, the familly goes to the mountains.')",
+        default="Fix the spelling: Every fall, the familly goes to the mountains."
+    )
+    typer.echo("Generating text...")
+    try:
+        generated_text = llm.generate(prompt_text)
+        typer.echo("\nGenerated text:")
+        typer.echo(generated_text)
+    except Exception as e:
+        typer.echo(f"Failed to generate text: {e}")
 
 if __name__ == "__main__":
-    typer.run(setup)
+    app()
