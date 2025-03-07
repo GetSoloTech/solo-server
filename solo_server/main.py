@@ -1,6 +1,7 @@
 import time
 import subprocess
 import socket
+import sys
 import typer
 import click
 import yaml
@@ -11,7 +12,11 @@ from rich.panel import Panel
 from rich.theme import Theme
 from rich import box
 
-app = typer.Typer(help="Solo Server Setup CLI\nA polished CLI for hardware detection, model initialization, and advanced module loading.")
+import commands.query
+
+app = typer.Typer(
+    help="Solo Server Setup CLI\nA polished CLI for hardware detection, model initialization, advanced module loading, and query redirection."
+)
 
 # Google-inspired theme
 google_theme = Theme({
@@ -32,9 +37,9 @@ def print_banner():
     """Display a header banner for the Solo Server CLI."""
     banner_text = """
     ___  _             __      __  _ 
-   / _ \(_)___  ___   / /___  / /_(_)
-  / , _/ / _ \/ -_) / / __/ / __/ / 
- /_/|_/_/ .__/\__/ /_/\__/  \__/_/  
+   / _ \\(_)___  ___   / /___  / /_(_)
+  / , _/ / _ \\/ -_) / / __/ / __/ / 
+ /_/|_/_/ .__/\\__/ /_/\\__/  \\__/_/  
        /_/                         
     """
     console.print(Panel(banner_text, style="header", border_style="panel.border", title="SOLO SERVER INIT", box=box.DOUBLE))
@@ -65,7 +70,9 @@ def simulate_model_download(model: str, sleep_time: int = 3) -> str:
     Simulate model download with a progress bar.
     (sleep_time is in seconds; e.g., 3 sec ~ 0.05 mins)
     """
-    for _ in tqdm(range(sleep_time), desc="Downloading model (est. {:.2f} mins)".format(sleep_time/60), unit="sec", total=sleep_time):
+    for _ in tqdm(range(sleep_time),
+                    desc="Downloading model (est. {:.2f} mins)".format(sleep_time/60),
+                    unit="sec", total=sleep_time):
         time.sleep(1)
     return f"[success]Model {model} download complete.[/success]"
 
@@ -307,6 +314,31 @@ def setup(
     console.print(Panel(f"Starting server with model: {MODEL}", title="Server", border_style="panel.border", box=box.ROUNDED, padding=(1, 2)))
     server_message, used_port = serve_model(MODEL, port=START_PORT)
     console.print(server_message)
+
+@app.command()
+def query(query: str = typer.Argument(
+    None,
+    help="Query for the LLM. If omitted, interactive mode is launched."
+)):
+    """
+    Redirect queries to the appropriate functions in query.py.
+    If a query is provided, it is processed; otherwise, interactive mode is launched.
+    If the query starts with 'solo @@', the prefix is stripped and the core server is used.
+    """
+    try:
+        from commands.query import query_llm, redirect_to_core_server, interactive_mode
+    except ModuleNotFoundError:
+        console.print("[warning]Module 'query' not found. Please ensure query.py is in the same directory.[/warning]")
+        raise typer.Exit(1)
+    
+    if query is None:
+        interactive_mode()
+    else:
+        if query.startswith("solo @@"):
+            core_query = query[len("solo @@"):].strip()
+            redirect_to_core_server(core_query)
+        else:
+            query_llm(query)
 
 if __name__ == "__main__":
     app()
