@@ -23,8 +23,36 @@ class ServerType(str, Enum):
     VLLM = "vLLM"
     LLAMACPP = "Llama.cpp"
 
+domain_mapping = {
+    "research": {
+        "small": "allenai/OLMo-1B-hf",
+        "medium": "allenai/OLMo-1B-hf",
+        "large": "allenai/OLMo-7B-Instruct-hf"
+    },
+    "software dev": {
+        "small": "Qwen/Qwen2.5-Coder-0.5B-Instruct",
+        "medium": "Qwen/Qwen2.5-Coder-1.5B-Instruct",
+        "large": "Qwen/Qwen2.5-Coder-7B-Instruct"
+    },
+    # "healthcare": {
+    #     "small": "HuggingFaceTB/SmolLM2-135M-Instruct-Healthcare",
+    #     "medium": "HuggingFaceTB/SmolLM2-360M-Instruct-Healthcare",
+    #     "large": "HuggingFaceTB/SmolLM2-1.7B-Instruct-Healthcare"
+    # },
+    "reasoning": {
+        "small": "HuggingFaceTB/SmolLM2-135M-Instruct-General",
+        "medium": "HuggingFaceTB/SmolLM2-360M-Instruct-General",
+        "large": "HuggingFaceTB/SmolLM2-1.7B-Instruct-General"
+    },
+    "general": {
+        "small": "meta-llama/Llama-3.2-1B-Instruct",
+        "medium": "meta-llama/Llama-3.2-3B-Instruct",
+        "large": "microsoft/phi-4"
+    },
+}
+
 # move to utils
-def choose_smol_model(hardware_specs):
+def choose_solo_model(hardware_specs, domain_choice):
     """
     Select the appropriate SmolLM2 model based on the provided hardware specifications.
     
@@ -38,21 +66,36 @@ def choose_smol_model(hardware_specs):
     memory_gb = hardware_specs.get("memory_gb", 0)
     
     # Prefer GPU memory for decision if available
+    gpu_vendor = hardware_specs.get("gpu_vendor")
+    gpu_memory = hardware_specs.get("gpu_memory")
+    memory_gb = hardware_specs.get("memory_gb", 0)
+    
     if gpu_vendor and gpu_memory:
         if gpu_memory >= 8:
-            return "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+            model_size = "large"
         elif gpu_memory >= 4:
-            return "HuggingFaceTB/SmolLM2-360M-Instruct"
+            model_size = "medium"
         else:
-            return "HuggingFaceTB/SmolLM2-135M-Instruct"
+            model_size = "small"
     else:
-        # Fallback to CPU memory thresholds
         if memory_gb >= 16:
-            return "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+            model_size = "large"
         elif memory_gb >= 8:
-            return "HuggingFaceTB/SmolLM2-360M-Instruct"
+            model_size = "medium"
         else:
-            return "HuggingFaceTB/SmolLM2-135M-Instruct"
+            model_size = "small"
+    
+    # Return domain-specific model if domain_choice is recognized
+    if domain_choice in domain_mapping:
+        return domain_mapping[domain_choice][model_size]
+    else:
+        # Fallback to default model naming if domain not recognized
+        default_models = {
+            "small": "HuggingFaceTB/SmolLM2-135M-Instruct",
+            "medium": "HuggingFaceTB/SmolLM2-360M-Instruct",
+            "large": "HuggingFaceTB/SmolLM2-1.7B-Instruct"
+        }
+        return default_models[model_size]
 
 
 # move to utils
@@ -82,13 +125,37 @@ def setup_core_llm(hardware_specs):
     
     console.print("[blue]Solo setup: Installing optimal inference engine, hold tight![/blue]\n")
 
-    selected_model = choose_smol_model(hardware_specs)
-    print(f"Based on your hardware, we recommend downloading: {selected_model}")
+    # Display domain options as numbered choices
+    console.print("Select your domain:")
+    console.print("1. Research")
+    console.print("2. Software Dev")
+    console.print("3. Healthcare")
+    console.print("4. General")
+
+    # Prompt for the user's choice and map it to the corresponding domain
+    choice = console.input("Enter your choice (1-4): ").strip()
+    if choice == "1":
+        domain_choice = "research"
+    elif choice == "2":
+        domain_choice = "software dev"
+    elif choice == "3":
+        domain_choice = "healthcare"
+    elif choice == "4":
+        domain_choice = "general"
+    else:
+        console.print("[red]Invalid choice. Defaulting to 'general'.[/red]")
+        domain_choice = "general"
+
+    # Select the appropriate model based on hardware specs and the chosen domain
+    selected_model = choose_solo_model(hardware_specs, domain_choice)
+    print(f"Based on your hardware and domain selection, we recommend downloading: {selected_model}")
+
     # Run the download command with a blue spinner
     download_command = ["litgpt", "download", selected_model]
     run_with_spinner(download_command, "Solo download in progress: Optimizing model for your hardware")
-    
+
     console.print("\n")
+
     
     # Display a blue bordered panel indicating the server is live
     panel_text = (
