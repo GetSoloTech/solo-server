@@ -9,6 +9,7 @@ from pathlib import Path
 
 from solo_server.config import CONFIG_PATH
 from solo_server.config.config_loader import get_server_config
+from solo_server.config.config_parser import get_usecase_model, resolve_model_reference, get_available_usecases
 from solo_server.utils.hardware import detect_hardware
 from solo_server.utils.server_utils import start_vllm_server, setup_ollama_server, setup_llama_cpp_server, is_huggingface_repo, pull_model_from_huggingface
 from solo_server.utils.llama_cpp_utils import start_llama_cpp_server
@@ -21,9 +22,10 @@ class ServerType(str, Enum):
 def serve(
     server: str = typer.Option("ollama", "--server", "-s", help="Server type (ollama, vllm, llama.cpp)"),
     model: str = typer.Option(None, "--model", "-m", help="Model name or path"),
-    port: int = typer.Option(None, "--port", "-p", help="Port to run the server on")
+    port: int = typer.Option(None, "--port", "-p", help="Port to run the server on"),
+    usecase: str = typer.Option(None, "--usecase", "-u", help="Usecase to determine default model (e.g., coding, chat)")
 ):
-    """Start a model server with the specified model"""
+    """Start a model server with the specified model or usecase"""
     
     # Get hardware info and GPU configuration
     cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name = detect_hardware()
@@ -51,7 +53,16 @@ def serve(
     ollama_config = get_server_config('ollama')
     llama_cpp_config = get_server_config('llama_cpp')
     
-    # Set default models based on server type
+    # If usecase is provided, get the default model for that usecase
+    if usecase and not model:
+        model = get_usecase_model(usecase)
+        if not model:
+            available_usecases = get_available_usecases()
+            typer.echo(f"❌ Invalid or undefined usecase: {usecase}. Available usecases: {', '.join(available_usecases)}", err=True)
+            raise typer.Exit(code=1)
+        typer.echo(f"📝 Using model '{model}' for usecase '{usecase}'")
+    
+    # Set default models based on server type if no model specified
     if not model:
         if server == ServerType.VLLM.value:
             model = vllm_config.get('default_model', "meta-llama/Llama-3.2-1B-Instruct")
@@ -59,6 +70,9 @@ def serve(
             model = ollama_config.get('default_model', "llama3.2")
         elif server == ServerType.LLAMACPP.value:
             model = llama_cpp_config.get('default_model', "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1B-Instruct-Q4_K_M.gguf")
+    
+    # Resolve model reference to transport URL
+    model, metadata = resolve_model_reference(model)
     
     if not port:
         if server == ServerType.VLLM.value:
