@@ -260,3 +260,54 @@ This project wouldn't be possible without the help of other projects like:
 
 Like using Solo, consider leaving us a ⭐ on GitHub
 
+## Using Model Usecases
+
+Solo Server now supports predefined usecases that automatically select the most appropriate model for your task. You can start a server with a specific usecase using the `--usecase` flag:
+
+```bash
+# Start a server with the default coding model
+solo serve --usecase coding
+
+# Start a server with the default chat model
+solo serve --usecase chat
+
+# Start a server with a specific model, overriding the usecase default
+solo serve --usecase coding --model codellama
+```
+
+### Available Usecases
+
+The following usecases are available out of the box:
+
+- `coding`: Optimized for code generation and completion (default: CodeLlama)
+- `chat`: General conversation and chat (default: Mixtral)
+- `robotics`: Robotics and control systems (default: Llama2)
+- `healthcare`: Healthcare and medical applications (default: Mistral)
+- `general`: Lightweight general-purpose tasks (default: TinyLlama)
+
+### Customizing Usecases
+
+You can customize the model mappings and add new usecases by editing the `usecases.conf` file in the config directory. The configuration file uses a simple INI format:
+
+```ini
+[shortnames]
+# Define model shortnames and their transport URLs
+tiny = ollama://tinyllama
+codellama = ollama://codellama
+
+[usecases]
+# Map usecases to default models
+coding = codellama
+chat = mixtral
+
+[metadata]
+# Optional metadata about models
+codellama.description = Specialized for code generation
+codellama.gpu_memory = 8
+```
+
+The configuration supports three types of model references:
+- Ollama models: `ollama://model-name`
+- HuggingFace models: `huggingface://org/model-name`
+- Local models: Direct paths to model files
+
