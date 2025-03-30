@@ -19,6 +19,14 @@ from huggingface_hub import snapshot_download
 
 console = Console()
 
+GB = 1024 ** 3
+LARGE_MEMORY_THRESHOLD = 16 * GB
+MEDIUM_MEMORY_THRESHOLD = 8 * GB
+SMALL_MEMORY_THRESHOLD = 4 * GB
+
+AVAILABLE_ENGINES = ["ollama", "vllm", "sglang", "llamacpp"]
+DEFAULT_ENGINE = "llamacpp"
+
 # Ensure Python 3.8+ is installed
 if sys.version_info < (3, 8):
     sys.exit("🚫 Python 3.8 or higher is required.")
@@ -116,35 +124,34 @@ def get_inference_engine_preference():
     """
     Ask the user to choose their default inference engine.
     """
-    engines = ["ollama", "vllm", "sglang", "llamacpp"]
     console.print(Panel("Select your preferred default inference engine:", border_style="blue"))
-    for idx, eng in enumerate(engines, start=1):
+    for idx, eng in enumerate(AVAILABLE_ENGINES, start=1):
         console.print(f"[blue]{idx}.[/blue] {eng}")
     choice = Prompt.ask("Enter the number corresponding to your preferred inference engine", default="1")
     try:
         choice_num = int(choice)
-        if 1 <= choice_num <= len(engines):
-            return engines[choice_num - 1]
+        if 1 <= choice_num <= len(AVAILABLE_ENGINES):
+            return AVAILABLE_ENGINES[choice_num - 1]
         else:
-            console.print("[red]Invalid choice. Defaulting to ollama.[/red]")
-            return "ollama"
+            console.print("[red]Invalid choice. Defaulting to llamacpp.[/red]")
+            return DEFAULT_ENGINE
     except ValueError:
-        console.print("[red]Invalid input. Defaulting to ollama.[/red]")
-        return "ollama"
+        console.print("[red]Invalid input. Defaulting to llamacpp.[/red]")
+        return DEFAULT_ENGINE
 
 def get_file_type_preference():
     """
     Ask the user to choose their preferred file type.
     """
-    types = ["onnx", "gguf"]
+    FILE_TYPE_PREFERENCE = ["onnx", "gguf"]
     console.print(Panel("Select your preferred file type for model files:", border_style="blue"))
-    for idx, ftype in enumerate(types, start=1):
+    for idx, ftype in enumerate(FILE_TYPE_PREFERENCE, start=1):
         console.print(f"[blue]{idx}.[/blue] {ftype}")
     choice = Prompt.ask("Enter the number corresponding to your file type preference", default="1")
     try:
         choice_num = int(choice)
-        if 1 <= choice_num <= len(types):
-            return types[choice_num - 1]
+        if 1 <= choice_num <= len(FILE_TYPE_PREFERENCE):
+            return FILE_TYPE_PREFERENCE[choice_num - 1]
         else:
             console.print("[red]Invalid choice. Defaulting to onnx.[/red]")
             return "onnx"
@@ -222,10 +229,9 @@ def detect_computer_size():
     - Small: less than 8GB
     """
     mem = psutil.virtual_memory().total
-    gb = 1024 ** 3
-    if mem >= 16 * gb:
+    if mem >= LARGE_MEMORY_THRESHOLD:
         return "large"
-    elif mem >= 8 * gb:
+    elif mem >= MEDIUM_MEMORY_THRESHOLD:
         return "medium"
     else:
         return "small"
