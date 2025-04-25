@@ -9,6 +9,7 @@ import socket
 import psutil
 
 from solo_server.config import CONFIG_PATH
+from solo_server.utils.nvidia import is_cuda_toolkit_installed
 from solo_server.config.config_loader import get_server_config
 from solo_server.utils.hf_utils import get_available_models, select_best_model_file
 
@@ -76,122 +77,66 @@ def is_llama_cpp_installed():
     except ImportError:
         return False
 
-def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: int = None):
+def setup_llama_cpp_server(gpu_enabled: bool, gpu_vendor: str = None, os_name: str = None, use_uv: bool = False):
     """
-    Start the llama.cpp server.
-    
+    Setup llama_cpp_python server using system config.
+
     Parameters:
+    gpu_enabled (bool): Whether GPU is enabled.
+    gpu_vendor (str, optional): The GPU vendor (e.g., NVIDIA, AMD, Apple Silicon).
     os_name (str, optional): The name of the operating system.
-    model_path (str, optional): Path to the model file or HuggingFace repo ID.
-    port (int, optional): Port to run the server on.
+    install_only (bool, optional): If True, only install the library without starting the server.
+    using_uv (bool, optional): If provided, skips the uv confirmation prompt and uses this value.
     """
-    # Check if llama_cpp is installed
-    if not is_llama_cpp_installed():
-        typer.echo("❌ Server not found. Please run 'solo setup' first.", err=True)
-        return False
-        
     # Load llama.cpp configuration from YAML
     llama_cpp_config = get_server_config('llama_cpp')
+    # Set CMAKE_ARGS based on hardware and OS
+    cmake_args = []
+    use_gpu_build = False
     
-    # Use default values from config if not provided
-    port = port or llama_cpp_config.get('default_port', 8080)
-    model_path = model_path or llama_cpp_config.get('default_model')
-    
-    try:
-        # Check if port is already in use
-        if is_port_in_use(port):
-            typer.echo(f"Port {port} is already in use.")
-            if not stop_server_on_port(port):
-                typer.echo(f"❌ Failed to stop existing server on port {port}. Please stop it manually.", err=True)
-                return False
-        
-        # If no model path is provided, prompt the user
-        if not model_path:
-            typer.echo("Please provide the path to your GGUF model file or a HuggingFace repo ID.")
-            model_path = typer.prompt("Enter the model path or repo ID")
-            
-        # Get HuggingFace token if needed
-        hf_token = os.getenv('HUGGING_FACE_TOKEN', '')
-        if not hf_token and not os.path.exists(model_path):  # Only check for token if not a local file
-            if os.path.exists(CONFIG_PATH):
-                with open(CONFIG_PATH, 'r') as f:
-                    config = json.load(f)
-                    hf_token = config.get('hugging_face', {}).get('token', '')
-        
-        # Determine if this is a repo ID or direct path
-        hf_repo_id, model_pattern = preprocess_model_path(model_path, hf_token)
+    if gpu_enabled:
+        if gpu_vendor == "NVIDIA":
+            if is_cuda_toolkit_installed():
+                use_gpu_build = True
+                cmake_args.append(llama_cpp_config.get('cmake_args', {}).get('nvidia', "-DGGML_CUDA=on"))
+            else:
+                typer.echo("⚠️ NVIDIA CUDA Toolkit not properly configured. Will try CPU-only build instead.", err=True)
+        elif gpu_vendor == "AMD":
+            use_gpu_build = True
+            cmake_args.append(llama_cpp_config.get('cmake_args', {}).get('amd', "-DGGML_HIPBLAS=on"))
+        elif gpu_vendor == "Apple Silicon":
+            use_gpu_build = True
+            cmake_args.append(llama_cpp_config.get('cmake_args', {}).get('apple_silicon', "-DGGML_METAL=on"))
+  
+    cmake_args_str = " ".join(cmake_args)
 
-        # Build server command
-        server_cmd = [
-            sys.executable, "-m", "llama_cpp.server",
-            "--host", "0.0.0.0",
-            "--port", str(port)
-        ]
-        
-        if hf_repo_id and not os.path.exists(model_path):
-            # This is a HuggingFace repo ID
-            typer.echo(f"Using HuggingFace repo: {hf_repo_id}")
-            server_cmd.extend(["--hf_model_repo_id", hf_repo_id])
-            server_cmd.extend(["--model", model_pattern])
+    try:
+        env = os.environ.copy()
+        if use_gpu_build:
+            env["CMAKE_ARGS"] = cmake_args_str
+            typer.echo(f"Attempting GPU-accelerated build with: {cmake_args_str}")
         else:
-            # Direct model path
-            model_path = os.path.abspath(os.path.expanduser(model_path))
-            if not os.path.exists(model_path):
-                typer.echo(f"❌ Model file not found: {model_path}", err=True)
-                return False
-            server_cmd.extend(["--model", model_path])
+            typer.echo("Installing CPU-only version of llama-cpp-python")
         
-        # Start the server as a background process
-        typer.echo(f"Using model: {hf_repo_id + '/' + model_pattern if hf_repo_id and not os.path.exists(model_path) else model_path}")
-        if os_name == "Windows":
-            # Create a log file for capturing output
-            log_dir = os.path.join(os.path.expanduser("~"), ".solo", "logs")
-            os.makedirs(log_dir, exist_ok=True)
-            log_file = os.path.join(log_dir, "llama_cpp_server.log")
-            
-            # Start the server in a new console window and keep it open with a pause command
-            cmd_str = " ".join(server_cmd) + " & pause"
-            process = subprocess.Popen(
-                f'start cmd /k "{cmd_str}"',
-                shell=True
-            )
-            typer.echo(f"Server is running in a new terminal window. The window will stay open.")
+        typer.echo(f"Using {'uv' if use_uv else 'pip'} as package manager")
+        # Install llama-cpp-python using the Python interpreter
+        if use_uv:
+            installer_cmd = ["uv", "pip", "install", "--no-cache-dir", "llama-cpp-python[server]"]
         else:
-            # For Unix-like systems, use terminal-specific commands
-            if os_name == "Darwin":  # macOS
-                # For macOS, use AppleScript to keep the Terminal window open
-                script = f'tell app "Terminal" to do script "{" ".join(server_cmd)} ; echo \'\\nServer is running. Press Ctrl+C to stop.\'; bash"'
-                terminal_cmd = ["osascript", "-e", script]
-                subprocess.Popen(terminal_cmd)
-                typer.echo("Server is running in a new Terminal window")
-            else:  # Linux and other Unix-like systems
-                # Try to detect the terminal and keep it open
-                if shutil.which("gnome-terminal"):
-                    terminal_cmd = ["gnome-terminal", "--", "bash", "-c", f"{' '.join(server_cmd)}; echo '\\nServer is running. Press Ctrl+C to stop.'; exec bash"]
-                    subprocess.Popen(terminal_cmd)
-                elif shutil.which("xterm"):
-                    terminal_cmd = ["xterm", "-e", f"{' '.join(server_cmd)}; echo '\\nServer is running. Press Ctrl+C to stop.'; exec bash"]
-                    subprocess.Popen(terminal_cmd)
-                elif shutil.which("konsole"):
-                    terminal_cmd = ["konsole", "-e", f"bash -c '{' '.join(server_cmd)}; echo \"\\nServer is running. Press Ctrl+C to stop.\"; exec bash'"]
-                    subprocess.Popen(terminal_cmd)
-                else:
-                    # Fallback to background process if no terminal is found
-                    process = subprocess.Popen(
-                        server_cmd,
-                        stdout=subprocess.PIPE,
-                        stderr=subprocess.PIPE,
-                        start_new_session=True
-                    )
-                    typer.echo(f"Server is running in the background. Process ID: {process.pid}")
-                    return True
-                
-                typer.echo("Server is running in a new terminal window")
-        
-        # Wait for the server to start
-        time.sleep(2)
-        return True
-        
+            installer_cmd = [sys.executable, "-m", "pip", "install", "--no-cache-dir", "llama-cpp-python[server]"]
+
+        try:
+            subprocess.check_call(installer_cmd, env=env)
+        except subprocess.CalledProcessError as e:
+            if use_gpu_build:
+                typer.echo("❌ GPU-accelerated build failed. Falling back to CPU-only build...", err=True)
+                # Clear CMAKE_ARGS for CPU-only build
+                env.pop("CMAKE_ARGS", None)
+                subprocess.check_call(installer_cmd, env=env)
+            else:
+                raise e
     except Exception as e:
-        typer.echo(f"❌ Failed to start llama.cpp server: {e}", err=True)
+        typer.echo(f"❌ Failed to install package: {e}", err=True)
         return False
+    return True
+            

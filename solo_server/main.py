@@ -44,7 +44,7 @@ class ServerType(str, Enum):
 
 def setup():
     """
-    Set up Solo Server environment with interactive prompts and checks.
+    Set up Solo Server environment with interactive prompts and saves configuration to config.json.
     """
     typer.echo("\n💾 Setting up Solo Server...\n")
     
@@ -160,7 +160,7 @@ def setup():
             description = "(Best for CPU or lower-resource machines)"
         typer.echo(f"  {i}. {server.value} {description}")
     
-    server_choice = int(Prompt.ask("Enter the number of your preferred server", default="2"))
+    server_choice = int(Prompt.ask("Enter the number of your preferred server", default="1"))
     server = list(ServerType)[server_choice - 1] if 1 <= server_choice <= len(ServerType) else ServerType.OLLAMA
     
     # Save configuration
@@ -277,29 +277,24 @@ def setup():
             typer.echo("📥 Installing server package...")
             
             # Check if the user is using uv for package management
-            using_uv = Confirm.ask("Are you using uv for Python package management?", default=False)
+            is_uv_available = subprocess.run(["uv", "--version"], check=False, capture_output=True)
+            if is_uv_available.returncode == 0:
+                using_uv = Confirm.ask("Are you using uv for Python package management?", default=False)
+            else:
+                using_uv = False
             
             # Save package manager info to config
             if 'environment' not in config:
                 config['environment'] = {}
             config['environment']['package_manager'] = 'uv' if using_uv else 'pip'
             
-            try:
-                if using_uv:
-                    typer.echo("Installing with uv...")
-                    subprocess.run(["uv", "pip", "install", "llama-cpp-python"], check=True)
-                else:
-                    subprocess.run([sys.executable, "-m", "pip", "install", "llama-cpp-python"], check=True)
-                    
-            except FileNotFoundError as e:
-                if using_uv:
-                    typer.echo("\n❌ uv command not found. Please install uv first: https://github.com/astral-sh/uv")
-                else:
-                    typer.echo("\n❌ pip not found. Please ensure pip is installed in your Python environment.")
-                return
-            except subprocess.CalledProcessError as e:
-                typer.echo(f"\n❌ Error setting up environment: {e}", err=True)
-                typer.echo("Please check your Python environment and package configuration.")
+            # setup_llama_cpp_server for hardware-specific installation
+            from solo_server.utils.llama_cpp_utils import setup_llama_cpp_server
+
+            if setup_llama_cpp_server(use_gpu, gpu_vendor, os_name, using_uv):
+                typer.echo("✅ Server package installed successfully with hardware optimizations")
+            else:
+                typer.echo("❌ Failed to install package. Please check your Python environment.")
                 return
 
     # Create configuration directory if it doesn't exist
