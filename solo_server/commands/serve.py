@@ -2,6 +2,7 @@ import typer
 import os
 import json
 import subprocess
+from datetime import datetime
 
 from enum import Enum
 from typing import Optional
@@ -13,6 +14,7 @@ from solo_server.utils.server_utils import (start_vllm_server,
                                             start_llama_cpp_server, 
                                             is_huggingface_repo, 
                                             pull_model_from_huggingface)
+from solo_server.utils.docker_utils import start_docker_engine
 
 class ServerType(str, Enum):
     OLLAMA = "ollama"
@@ -20,12 +22,12 @@ class ServerType(str, Enum):
     LLAMACPP = "llama.cpp"
 
 def serve(
-    server: Optional[str] = typer.Option(None, "--server", "-s", help="Server type (ollama, vllm, llama.cpp)"),
     model: Optional[str] = typer.Option(None, "--model", "-m", help="""Model name or path. Can be:
     - HuggingFace repo ID (e.g., 'meta-llama/Llama-3.2-1B-Instruct')
     - Ollama model Registry (e.g., 'llama3.2')
     - Local path to a model file (e.g., '/path/to/model.gguf')
     If not specified, the default model from configuration will be used."""),
+    server: Optional[str] = typer.Option(None, "--server", "-s", help="Server type (ollama, vllm, llama.cpp)"), 
     port: Optional[int] = typer.Option(None, "--port", "-p", help="Port to run the server on")
 ):
     """Start a model server with the specified model.
@@ -92,6 +94,34 @@ def serve(
         elif server == ServerType.LLAMACPP.value:
             port = llama_cpp_config.get('default_port', 5070)
     
+    # Check Docker is installed and running for Docker-based servers
+    if server in [ServerType.VLLM.value, ServerType.OLLAMA.value]:
+        # Check if Docker is installed
+        docker_installed = True
+        try:
+            subprocess.run(["docker", "--version"], check=True, capture_output=True)
+        except FileNotFoundError:
+            docker_installed = False
+            typer.echo("❌ Docker is not installed on your system.", err=True)
+            typer.echo("Please install Docker Desktop from https://www.docker.com/products/docker-desktop/")
+            typer.echo("After installation, run 'solo setup'.")
+            raise typer.Exit(code=1)
+        
+        # Check if Docker is running
+        docker_running = False
+        try:
+            subprocess.run(["docker", "info"], check=True, capture_output=True)
+            docker_running = True
+        except subprocess.CalledProcessError:
+            docker_running = False
+            typer.echo("⚠️  Docker is installed but not running. Trying to start Docker...")
+            docker_running = start_docker_engine(os_name)
+            
+            if not docker_running:
+                typer.echo("❌ Could not start Docker automatically.", err=True)
+                typer.echo("Please start Docker manually and run 'solo serve' again.")
+                raise typer.Exit(code=1)
+    
     # Start the appropriate server
     typer.echo(f"\nStarting Solo server...")
     success = False
@@ -152,10 +182,24 @@ def serve(
         # Get formatted model name for display
         display_model = original_model_name
         if is_huggingface_repo(original_model_name):
-            # For HF models, get the repository name
+            # For HF models, get the repository name for display
             display_model = original_model_name.split('/')[-1] if '/' in original_model_name else original_model_name
+        
+        # Save model information to config file
+        # Update config with active model information
+        config['active_model'] = {
+            'server': server,
+            'name': display_model,
+            'full_model_name': original_model_name,  # Save the complete model name
+            'last_used': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        }
+        
+        # Save updated config
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump(config, f, indent=4)
         
         # Print server information
         typer.secho("✅ Solo Server is running", fg=typer.colors.BRIGHT_GREEN, bold=True)
-        typer.secho(f"Model  - {display_model}", fg=typer.colors.BRIGHT_BLUE, bold=True)
+        typer.secho(f"Model  - {display_model}", fg=typer.colors.BRIGHT_CYAN, bold=True)
         typer.secho(f"URL    - http://localhost:{port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
+        typer.secho(f"Use 'solo test' to test the server.", fg=typer.colors.BRIGHT_MAGENTA)

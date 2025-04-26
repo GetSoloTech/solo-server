@@ -10,7 +10,7 @@ from solo_server.config import CONFIG_PATH
 from solo_server.utils.hf_utils import select_best_model_file
 from solo_server.config.config_loader import load_config, get_server_config, get_timeout_config
 from solo_server.utils.llama_cpp_utils import (is_port_in_use, 
-                                              stop_server_on_port, 
+                                              find_process_by_port,
                                               preprocess_model_path, 
                                               is_llama_cpp_installed)
 
@@ -57,7 +57,8 @@ def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
                 sock.bind(('127.0.0.1', port))
                 sock.close()
             except socket.error:
-                typer.echo(f"❌ Port {port} is already in use, try using a different port", err=True)
+                typer.echo(f"❌ Port {port} is already in use, please try a different port", err=True)
+                typer.echo(f"Run 'solo stop' to stop all running servers.")
                 return False
             
             docker_run_cmd = [
@@ -85,32 +86,14 @@ def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
                 else:
                     model_source = "huggingface"
                     model_name = model
-                    
-                    # Get HuggingFace token from environment variable or config file
-                    typer.echo("🔑 Checking for HuggingFace token...")
+    
+                    # Get HuggingFace token from config file 
                     hf_token = os.getenv('HUGGING_FACE_TOKEN', '')
-
                     if not hf_token:  # If not in env, try config file
                         if os.path.exists(CONFIG_PATH):
                             with open(CONFIG_PATH, 'r') as f:
                                 config = json.load(f)
                                 hf_token = config.get('hugging_face', {}).get('token', '')
-
-                    if not hf_token:
-                        if os_name in ["Linux", "Windows"]:
-                            typer.echo("Use Ctrl + Shift + V to paste your token.")
-                        hf_token = typer.prompt("Please add your HuggingFace token (Recommended)")
-                        
-                    # Save token if provided 
-                    if hf_token:
-                        if os.path.exists(CONFIG_PATH):
-                            with open(CONFIG_PATH, 'r') as f:
-                                config = json.load(f)
-                        else:
-                            config = {}
-                        config['hugging_face'] = {'token': hf_token}
-                        with open(CONFIG_PATH, 'w') as f:
-                            json.dump(config, f, indent=4)
 
                     # Add volume mount for HuggingFace cache
                     docker_run_cmd += [ 
@@ -269,7 +252,8 @@ def start_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
                 sock.bind(('127.0.0.1', port))
                 sock.close()
             except socket.error:
-                typer.echo(f"❌ Port {port} is already in use, try using a different port", err=True)
+                typer.echo(f"❌ Port {port} is already in use, please try a different port", err=True)
+                typer.echo(f"Run 'solo stop' to stop all running servers.")
                 return False
                 
             # Get appropriate docker image from config
@@ -286,7 +270,21 @@ def start_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
                 return False
 
             # Start Ollama container
-            docker_run_cmd = ["docker", "run", "-d", "--name", container_name, "-v", "ollama:/root/.ollama", "-p", f"{port}:11434"]
+            docker_run_cmd = ["docker", "run", "-d", "--name", container_name, "-p", f"{port}:11434"]
+            
+            # Check if local ollama directory exists
+            home_dir = os.path.expanduser("~")
+            local_ollama_dir = os.path.join(home_dir, ".ollama")
+            
+            if os.path.exists(local_ollama_dir) and os.path.isdir(local_ollama_dir):
+                typer.echo(f"Found existing Ollama directory at {local_ollama_dir}")
+                # Use local directory instead of volume
+                docker_run_cmd.extend(["-v", f"{local_ollama_dir}:/root/.ollama"])
+            else:
+                typer.echo("No existing Ollama directory found. Creating a new Docker volume.")
+                # Use Docker volume for storage
+                docker_run_cmd.extend(["-v", "ollama:/root/.ollama"])
+            
             if gpu_vendor == "NVIDIA" and gpu_enabled:
                 docker_run_cmd += ["--gpus", "all"]
             elif gpu_vendor == "AMD" and gpu_enabled:
@@ -347,10 +345,9 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
     try:
         # Check if port is already in use
         if is_port_in_use(port):
-            typer.echo(f"Port {port} is already in use.")
-            if not stop_server_on_port(port):
-                typer.echo(f"❌ Failed to stop existing server on port {port}. Please stop it manually.", err=True)
-                return False
+            typer.echo(f"❌ Port {port} is already in use, please try a different port", err=True)
+            typer.echo(f"Run 'solo stop' to stop all running servers.")
+            return False
         
         # If no model path is provided, prompt the user
         if not model_path:

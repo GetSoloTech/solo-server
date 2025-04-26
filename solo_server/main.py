@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 
 from solo_server.config import CONFIG_PATH
-from solo_server.utils.hardware import detect_hardware, display_hardware_info
+from solo_server.utils.hardware import hardware_info
 from solo_server.utils.nvidia import is_cuda_toolkit_installed, check_nvidia_toolkit
 from solo_server.config.config_loader import get_server_config
 from solo_server.utils.docker_utils import start_docker_engine
@@ -50,8 +50,7 @@ def setup():
     
     # Check system info and display hardware info
     typer.echo("🔍 Checking system information...")
-    cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name = detect_hardware()
-    display_hardware_info(typer)
+    cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name = hardware_info(typer)
     
     # GPU Check and Configuration
     use_gpu = False
@@ -163,6 +162,29 @@ def setup():
     server_choice = int(Prompt.ask("Enter the number of your preferred server", default="1"))
     server = list(ServerType)[server_choice - 1] if 1 <= server_choice <= len(ServerType) else ServerType.OLLAMA
     
+    # Ask for HuggingFace token for vLLM or llama.cpp setup
+    if server in [ServerType.VLLM, ServerType.LLAMACPP]:
+        typer.echo("A HuggingFace token is recommended for downloading gated models.")
+        
+        # Check for existing token in environment variable
+        hf_token = os.getenv('HUGGING_FACE_TOKEN', '')
+        
+        if not hf_token:  # If not in env, try config file
+            if os.path.exists(CONFIG_PATH):
+                try:
+                    with open(CONFIG_PATH, 'r') as f:
+                        config_data = json.load(f)
+                        hf_token = config_data.get('hugging_face', {}).get('token', '')
+                except (json.JSONDecodeError, FileNotFoundError):
+                    pass
+        
+        if not hf_token:
+            if os_name in ["Linux", "Windows"]:
+                typer.echo("Use Ctrl + Shift + V to paste your token.")
+            hf_token = typer.prompt("Please add your HuggingFace token", hide_input=True, default="", show_default=False)
+    else:
+        hf_token = ""
+    
     # Save configuration
     config = {}
     if os.path.exists(CONFIG_PATH):
@@ -203,7 +225,9 @@ def setup():
         'type': server.value
     })
     
-   
+    # Save HuggingFace token if provided
+    if hf_token:
+        config['hugging_face'] = {'token': hf_token}
     
     # Setup environment based on server type
     if server == ServerType.OLLAMA or server == ServerType.VLLM:

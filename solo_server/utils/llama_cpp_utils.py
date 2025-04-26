@@ -31,24 +31,7 @@ def find_process_by_port(port: int):
         except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
             pass
     return None
-
-def stop_server_on_port(port: int) -> bool:
-    """Stop any server running on the specified port."""
-    process = find_process_by_port(port)
-    if process:
-        try:
-            typer.echo(f"Found existing server on port {port} (PID: {process.pid}). Stopping it...")
-            process.terminate()
-            process.wait(timeout=5)  # Wait up to 5 seconds for graceful termination
-            if process.is_running():
-                process.kill()  # Force kill if still running
-            typer.echo(f"Successfully stopped existing server on port {port}")
-            time.sleep(1)  # Give the OS time to free up the port
-            return True
-        except Exception as e:
-            typer.echo(f"Error stopping server: {e}", err=True)
-            return False
-    return True  # No process to stop, so consider it a success
+# No process to stop, so consider it a success
 
 def preprocess_model_path(model_path: str, hf_token: str = None) -> tuple[str, str]:
     """

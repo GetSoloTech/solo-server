@@ -10,7 +10,7 @@ console = Console()
 
 def download(model: str) -> None:
     """
-    Downloads a Hugging Face model.
+    Downloads a Hugging Face model using the huggingface repo id.
     """
     console.print(f"🚀 Downloading model: [bold]{model}[/bold]...")
     try:

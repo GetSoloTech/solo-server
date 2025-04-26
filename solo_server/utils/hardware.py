@@ -85,70 +85,11 @@ def recommended_server(memory_gb, gpu_vendor, gpu_memory) -> str:
         typer.echo("\n✨ Llama.cpp is recommended for your system")
         return "llama.cpp"
 
-def get_recommended_server(system_info):
-    # Example logic for server recommendation based on system_info
-    if system_info['cpu_cores'] >= 16 and system_info['gpu_memory'] >= 8:
-        recommended_server = "High-Performance Server"
-        reasoning = "Suitable for intensive computational tasks and GPU processing."
-    elif system_info['cpu_cores'] >= 8:
-        recommended_server = "Standard Server"
-        reasoning = "Good for general-purpose tasks."
-    else:
-        recommended_server = "Basic Server"
-        reasoning = "Suitable for lightweight applications."
 
-    return recommended_server, reasoning
     
-def display_hardware_info(typer):
-    
-    # Check if system info exists in config file
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, 'r') as f:
-            config = json.load(f)
-            system_info = config.get('system_info', None)
-            if system_info:
-                panel = Panel.fit(
-                    f"[bold]Operating System:[/] {system_info['os']}\n"
-                    f"[bold]CPU:[/] {system_info['cpu_model']}\n"
-                    f"[bold]CPU Cores:[/] {system_info['cpu_cores']}\n"
-                    f"[bold]Memory:[/] {system_info['memory_gb']}GB\n"
-                    f"[bold]GPU:[/] {system_info['gpu_vendor']}\n"
-                    f"[bold]GPU Model:[/] {system_info['gpu_model']}\n"
-                    f"[bold]GPU Memory:[/] {system_info['gpu_memory']}GB\n"
-                    f"[bold]Compute Backend:[/] {system_info['compute_backend']}",
-                    title="[bold cyan]System Information[/]"
-                )
-                console.print(panel)
-                return
+def hardware_info(typer):
 
-    # If hardware info does not exist in config file or config file does not exist
     cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name = detect_hardware()
-    
-    system_info = {
-        "os": os_name,
-        "cpu_model": cpu_model,
-        "cpu_cores": cpu_cores,
-        "memory_gb": memory_gb,
-        "gpu_vendor": gpu_vendor,
-        "gpu_model": gpu_model,
-        "gpu_memory": gpu_memory,
-        "compute_backend": compute_backend
-    }
-
-    # Read existing config if it exists
-    if os.path.exists(CONFIG_PATH):
-        with open(CONFIG_PATH, 'r') as f:
-            config = json.load(f)
-    else:
-        config = {}
-
-    # Update config with system info
-    config['system_info'] = system_info
-
-    # Save updated config to config file
-    with open(CONFIG_PATH, 'w') as f:
-        json.dump(config, f, indent=4)
-
     panel = Panel.fit(
         f"[bold]Operating System:[/] {os_name}\n"
         f"[bold]CPU:[/] {cpu_model}\n"
@@ -161,15 +102,4 @@ def display_hardware_info(typer):
         title="[bold cyan]System Information[/]"
     )
     console.print(panel)
-
-    # After displaying the hardware panel, show the recommendation
-    recommended_server, reasoning = get_recommended_server(system_info)
-    typer.secho(
-        "\n💡 Recommended Server:",
-        fg=typer.colors.BRIGHT_CYAN,
-        bold=True
-    )
-    typer.secho(
-        f"► {recommended_server}: {reasoning}",
-        fg=typer.colors.BRIGHT_GREEN
-    )
+    return cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name
