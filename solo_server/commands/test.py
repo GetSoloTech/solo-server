@@ -145,9 +145,6 @@ def test(
                 
                 # Display results
                 typer.secho("✅ Server is running and responded to inference request", fg=typer.colors.BRIGHT_GREEN, bold=True)
-                
-                # Print server details
-                typer.secho(f"Server - {server_type.capitalize()}", fg=typer.colors.BRIGHT_BLUE)
                 if model_name:
                     typer.secho(f"Model  - {model_name}", fg=typer.colors.BRIGHT_BLUE)
                 typer.secho(f"URL    - {base_url}", fg=typer.colors.BRIGHT_CYAN)

@@ -101,7 +101,8 @@ def list():
         # Check if Docker is running
         docker_running = False
         try:
-            subprocess.run(["docker", "info"], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            # Capture Docker info and suppress output
+            subprocess.run(["docker", "info"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             docker_running = True
         except (subprocess.CalledProcessError, FileNotFoundError):
             pass
@@ -132,7 +133,8 @@ def list():
                         subprocess.run(
                             ["docker", "start", ollama_container],
                             check=True,
-                            capture_output=True
+                            stdout=subprocess.DEVNULL,  # Suppress stdout
+                            stderr=subprocess.PIPE     # Only capture stderr for errors
                         )
                         container_started = True
                         
@@ -157,7 +159,8 @@ def list():
                         if not ready:
                             typer.echo("⚠️  container started but not ready in time")
                             if container_started:
-                                subprocess.run(["docker", "stop", ollama_container], check=False)
+                                subprocess.run(["docker", "stop", ollama_container], check=False, 
+                                               stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
                             return
                         
                     except subprocess.CalledProcessError as e:
@@ -215,12 +218,14 @@ def list():
                 finally:
                     # Stop the container if we started it
                     if container_started:
-                        subprocess.run(["docker", "stop", ollama_container], check=False)
+                        subprocess.run(["docker", "stop", ollama_container], check=False,
+                                      stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     except Exception as e:
         typer.echo(f"⚠️  Error checking Ollama models: {e}", err=True)
         # Ensure container is stopped if we started it and an error occurred
         if docker_running and container_exists and container_started:
-            subprocess.run(["docker", "stop", ollama_container], check=False)
+            subprocess.run(["docker", "stop", ollama_container], check=False,
+                          stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     
     # Display results
     if hf_models_found:

@@ -131,25 +131,53 @@ solo serve -s ollama -m llama3.2
 │ --help                     Show this message and exit.                                                              │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 ```
+
+### **Test Inference**
+The test command checks if your Solo server is running correctly by performing a live inference test against your active model. It automatically detects your active model and server type from the configuration.
+
+```sh
+solo test
+```
+
+To modify the request timeout for slower models:
+```sh
+solo test --timeout 120
+```
+
+**Example Output:**
+```
+Testing Solo server connection...
+Checking server at http://localhost:5070...
+Testing inference  [####################################]  100%
+✅ Server is running and responded to inference request
+Model  - llama3.2:1b
+URL    - http://localhost:5070
+Inference time: 64.51 seconds
+
+Test prompt: What is machine learning? Keep it very brief.
+Response:
+Machine learning is a subset of artificial intelligence that enables computers to learn from data, make predictions or decisions without being explicitly programmed. It involves algorithms that analyze patterns and relationships in data, allowing machines to improve their performance over time.
+```
 ---
 
 ## REST API
 
-You can now use the API endpoint created by the Solo Server to interact with the model. You can send a POST request to `http://localhost:11434/api/chat` with a JSON payload containing the model name and the messages you want to send to the model.
+Solo Server provides consistent REST API endpoints across different server types (Ollama, vLLM, llama.cpp). The exact API endpoint and format differs slightly depending on which server type you're using.
 
-### Generate a response
+### API Endpoints by Server Type
+
+#### Ollama API 
 
 ```shell
-curl http://localhost:11434/api/generate -d '{
+# Generate a response
+curl http://localhost:5070/api/generate -d '{
   "model": "llama3.2",
-  "prompt":"Why is the sky blue?"
+  "prompt": "Why is the sky blue?",
+  "stream": false
 }'
-```
 
-### Chat with a model
-
-```shell
-curl http://localhost:11434/api/chat -d '{
+# Chat with a model
+curl http://localhost:5070/api/chat -d '{
   "model": "llama3.2",
   "messages": [
     { "role": "user", "content": "why is the sky blue?" }
@@ -157,19 +185,106 @@ curl http://localhost:11434/api/chat -d '{
 }'
 ```
 
+#### vLLM and llama.cpp API 
+Both use OpenAI-compatible endpoints:
+
+```shell
+# Chat completion
+curl http://localhost:5070/v1/chat/completions -d '{
+  "model": "llama3.2",
+  "messages": [
+    { "role": "user", "content": "Why is the sky blue?" }
+  ],
+  "max_tokens": 50,
+  "temperature": 0.7
+}'
+
+# Text completion
+curl http://localhost:5070/v1/completions -d '{
+  "model": "llama3.2",
+  "prompt": "Why is the sky blue?",
+  "max_tokens": 50,
+  "temperature": 0.7
+}'
+```
+
+### **List Available Models**
+View all downloaded models in your HuggingFace cache and Ollama:
+
+```sh
+solo list
+```
+
+**Example Output:**
+```
+🔍 Scanning for available models...
+                              HuggingFace Models                               
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┓
+┃ MODEL                                        ┃ SIZE      ┃ LAST MODIFIED    ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━┩
+│ bartowski/DeepSeek-R1-Distill-Qwen-1.5B-GGUF │ 1.04 GB   │ 2025-04-25 17:13 │
+│ bartowski/Llama-3.2-1B-Instruct-GGUF         │ 770.28 MB │ 2025-04-24 23:28 │
+│ GetSoloTech/gemma-3-1b-endocronology         │ 1.86 GB   │ 2025-04-21 22:02 │
+│ GetSoloTech/Llama-3.2-1B-Endocronology       │ 2.30 GB   │ 2025-04-24 23:07 │
+│ GetSoloTech/Llama-3.2-1B-Endocronology-GGUF  │ 770.28 MB │ 2025-04-24 23:30 │
+│ GetSoloTech/Llama-3.2-3B-Reasoning           │ 0.00 B    │ 2025-04-16 10:03 │
+│ meta-llama/Llama-3.2-1B-Instruct             │ 2.30 GB   │ 2025-04-25 10:29 │
+│ unsloth/Llama-3.2-1B-Instruct                │ 2.30 GB   │ 2025-04-25 11:02 │
+└──────────────────────────────────────────────┴───────────┴──────────────────┘
+                                    Ollama Models
+┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━┳━━━━━━━━━━━━━━┳━━━━━━━━┓
+┃ NAME                                              ┃ SIZE   ┃ MODIFIED     ┃ TAGS   ┃
+┡━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━╇━━━━━━━━━━━━━━╇━━━━━━━━┩
+│ hf.co/GetSoloTech/Llama-3.2-1B-Endocronology-GGUF │ 807 MB │ 2 days ago   │ Q4_K_M │
+│ endor                                             │ 1.1 GB │ 7 days ago   │ latest │
+│ hf.co/GetSoloTech/gemma-3-1b-endocronology-GGUF   │ 1.1 GB │ 8 days ago   │ latest │
+│ hf.co/GetSoloTech/Llama-3.2-3B-Reasoning-GGUF     │ 2.0 GB │ 12 days ago  │ latest │
+│ llama3.2                                          │ 1.3 GB │ 4 weeks ago  │ 1b     │
+│ hf.co/GetSoloTech/gemma-3-1b-it-GGUF              │ 1.1 GB │ 4 weeks ago  │ latest │
+│ solo                                              │ 3.6 GB │ 2 months ago │ latest │
+└───────────────────────────────────────────────────┴────────┴──────────────┴────────┘
+```
+
+This command:
+- Scans your HuggingFace cache directory for model files (.bin, .gguf, .safetensors)
+- Checks Ollama for downloaded models
+- Displays detailed information including model size and last modified date
+
 ### **Check Model Status**
 ```sh
 solo status
 ```
 **Example Output:**
 ```sh
-🔹 Running Models:
--------------------------------------------
-| Name      | Model   | Backend | Port |
-|----------|--------|---------|------|
-| llama3   | Llama3 | CUDA    | 8080 |
-| gptj     | GPT-J  | CPU     | 8081 |
--------------------------------------------
+📊 Solo Server Configuration:
+                                   Configuration                                   
+┏━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
+┃ CATEGORY ┃ PROPERTY         ┃ VALUE                                             ┃
+┡━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┩
+│ Hardware │ CPU Model        │ AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD │
+│ Hardware │ CPU Cores        │ 8                                                 │
+│ Hardware │ Memory (GB)      │ 15.42                                             │
+│ Hardware │ GPU Vendor       │ NVIDIA                                            │
+│ Hardware │ GPU Model        │ NVIDIA GeForce GTX 1660 Ti                        │
+│ Hardware │ GPU Memory       │ 6144.0                                            │
+│ Hardware │ GPU Enabled      │ Yes                                               │
+│ Hardware │ Operating System │ Windows                                           │
+│          │                  │                                                   │
+│ Server   │ Default Server   │ ollama                                            │
+│ Server   │ Default Port     │ 5070                                              │
+│ Server   │ Default Model    │ llama3.2:1b                                       │
+│          │                  │                                                   │
+│ User     │ Domain           │ Personal                                          │
+│ User     │ Role             │ Student                                           │
+└──────────┴──────────────────┴───────────────────────────────────────────────────┘
+
+🚀 Running Services:
+                     Running Services                      
+┏━━━━━━━━━┳━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┳━━━━━━━━━┓
+┃ SERVICE ┃ MODEL       ┃ URL                   ┃ STATUS  ┃
+┡━━━━━━━━━╇━━━━━━━━━━━━━╇━━━━━━━━━━━━━━━━━━━━━━━╇━━━━━━━━━┩
+│ Ollama  │ llama3.2:1b │ http://localhost:5070 │ Running │
+└─────────┴─────────────┴───────────────────────┴─────────┘
 ```
 
 ---
@@ -180,8 +295,13 @@ solo stop
 ```
 **Example Output:**
 ```sh
+🔍 Checking running Solo servers...
+Found 1 running Solo services:
+  • llama.cpp (PID: 21112)
+
 🛑 Stopping Solo Server...
-✅ Solo server stopped successfully.
+✅ Stopped llama.cpp (PID: 21112)
+✅ Successfully stopped 1 Solo service.
 ```
 
 ## **⚙️ Configuration (`solo.json`)**
@@ -194,24 +314,29 @@ Example:
 # Solo Server Configuration
 
 {
-    "hugging_face": {
-        "token": ""
-    },
-    "system_info": {
-        "os": "Windows",
+    "hardware": {
+        "use_gpu": true,
         "cpu_model": "AMD64 Family 23 Model 96 Stepping 1, AuthenticAMD",
         "cpu_cores": 8,
         "memory_gb": 15.42,
         "gpu_vendor": "NVIDIA",
         "gpu_model": "NVIDIA GeForce GTX 1660 Ti",
         "gpu_memory": 6144.0,
-        "compute_backend": "CUDA"
+        "compute_backend": "CUDA",
+        "os": "Windows"
     },
-    "starfish": {
-        "api_key": ""
+    "user": {
+        "domain": "Personal",
+        "role": "Student"
     },
-    "hardware": {
-        "use_gpu": true
+    "server": {
+        "type": "ollama"
+    },
+    "active_model": {
+        "server": "llama.cpp",
+        "name": "llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        "full_model_name": "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1B-Instruct-Q4_K_M.gguf",
+        "last_used": "2025-04-26 21:17:31"
     }
 }
 ```
@@ -233,9 +358,9 @@ cd solo-server
 
 # Create and activate virtual environment
 python -m venv .venv
-source .venv/bin/activate  # Unix/MacOS
+source .venv/bin/activate  # On Unix/MacOS
 # OR
-.venv\Scripts\activate     # Windows
+.venv\Scripts\activate     # On Windows
 
 # Install in editable mode
 pip install -e .
