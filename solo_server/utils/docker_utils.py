@@ -57,7 +57,7 @@ def start_docker_engine(os_name):
         while time.time() - start_time < timeout:
             try:
                 subprocess.run(["docker", "info"], check=True, capture_output=True)
-                typer.echo("✅ Docker is running.\n")
+                typer.echo("✅ Docker is running")
                 return True
             except subprocess.CalledProcessError:
                 time.sleep(5)
