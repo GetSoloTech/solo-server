@@ -387,7 +387,7 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
         
         if os_name == "Windows":
             # Create a log file for capturing output
-            log_dir = os.path.join(os.path.expanduser("~"), ".solo", "logs")
+            log_dir = os.path.join(os.path.expanduser("~"), ".solo_server", "logs")
             os.makedirs(log_dir, exist_ok=True)
             log_file = os.path.join(log_dir, "llama_cpp_server.log")
             
@@ -402,10 +402,28 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
             # For Unix-like systems, use terminal-specific commands
             if os_name == "Darwin":  # macOS
                 # For macOS, use AppleScript to keep the Terminal window open
-                script = f'tell app "Terminal" to do script "{" ".join(server_cmd)} ; echo \'\\nServer is running. Press Ctrl+C to stop.\'; bash"'
+                escaped_cmd = " ".join(server_cmd).replace('"', '\\"')
+                script = f'tell app "Terminal" to do script "{escaped_cmd} ; echo \\\"\\\\nServer is running. Press Ctrl+C to stop.\\\"; bash"'
+                typer.echo(f"Debug: Executing AppleScript with command: {escaped_cmd}")
                 terminal_cmd = ["osascript", "-e", script]
-                subprocess.Popen(terminal_cmd)
-                typer.echo("Server is running in a new Terminal window")
+                try:
+                    result = subprocess.Popen(terminal_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout, stderr = result.communicate(timeout=5)
+                    if stderr:
+                        typer.echo(f"Debug: AppleScript stderr: {stderr.decode('utf-8')}")
+                    typer.echo("Server is running in a new Terminal window")
+                except Exception as e:
+                    typer.echo(f"Warning: Issue launching Terminal: {e}")
+                    # Fallback to background process
+                    typer.echo("Falling back to background process...")
+                    process = subprocess.Popen(
+                        server_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        start_new_session=True
+                    )
+                    typer.echo(f"Server is running in the background. Process ID: {process.pid}")
+                    return True
             else:  # Linux and other Unix-like systems
                 # Try to detect the terminal and keep it open
                 if shutil.which("gnome-terminal"):
@@ -426,7 +444,6 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
                         start_new_session=True
                     )
                     typer.echo(f"Server is running in the background. Process ID: {process.pid}")
-                    return True
                 
                 typer.echo("Server is running in a new terminal window")
         
