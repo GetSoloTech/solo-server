@@ -53,6 +53,8 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
                         found_services.append({"type": "vLLM", "id": container})
                     elif "ollama" in container:
                         found_services.append({"type": "Ollama", "id": container})
+                    elif "ui" in container or container == "solo-ui":
+                        found_services.append({"type": "UI", "id": container})
                     else:
                         found_services.append({"type": "Unknown Docker container", "id": container})
     except Exception as e:
@@ -96,6 +98,7 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
                 if (name == "llama.cpp" and service["type"] == "llama.cpp") or \
                    (name == "vllm" and service["type"] == "vLLM") or \
                    (name == "ollama" and service["type"] == "Ollama") or \
+                   (name == "ui" and service["type"] == "UI") or \
                    (name in service["id"].lower()):
                     services_to_stop.append(service)
             

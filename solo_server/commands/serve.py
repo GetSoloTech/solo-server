@@ -13,7 +13,8 @@ from solo_server.utils.server_utils import (start_vllm_server,
                                             start_ollama_server, 
                                             start_llama_cpp_server, 
                                             is_huggingface_repo, 
-                                            pull_model_from_huggingface)
+                                            pull_model_from_huggingface,
+                                            start_ui)
 from solo_server.utils.docker_utils import start_docker_engine
 
 class ServerType(str, Enum):
@@ -28,7 +29,8 @@ def serve(
     - Local path to a model file (e.g., '/path/to/model.gguf')
     If not specified, the default model from configuration will be used."""),
     server: Optional[str] = typer.Option(None, "--server", "-s", help="Server type (ollama, vllm, llama.cpp)"), 
-    port: Optional[int] = typer.Option(None, "--port", "-p", help="Port to run the server on")
+    port: Optional[int] = typer.Option(None, "--port", "-p", help="Port to run the server on"),
+    ui: Optional[bool] = typer.Option(True, "--ui", help="Start the UI for the server")
 ):
     """Start a model server with the specified model.
     
@@ -191,8 +193,22 @@ def serve(
             'server': server,
             'name': display_model,
             'full_model_name': original_model_name,  # Save the complete model name
+            'port': port,  # Save the server port for the UI to use
             'last_used': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
+        
+        # Make sure server section exists
+        if 'server' not in config:
+            config['server'] = {}
+            
+        # Update server type in config
+        config['server']['type'] = server
+        
+        # Save the specific server config with port
+        if server not in config['server']:
+            config['server'][server] = {}
+            
+        config['server'][server]['default_port'] = port
         
         # Save updated config
         with open(CONFIG_PATH, 'w') as f:
@@ -202,4 +218,29 @@ def serve(
         typer.secho("✅ Solo Server is running", fg=typer.colors.BRIGHT_GREEN, bold=True)
         typer.secho(f"Model  - {display_model}", fg=typer.colors.BRIGHT_CYAN, bold=True)
         typer.secho(f"URL    - http://localhost:{port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
-        typer.secho(f"Use 'solo test' to test the server.", fg=typer.colors.BRIGHT_MAGENTA)
+        
+        # Get container name based on server type
+        if server == ServerType.VLLM.value:
+            container_name = vllm_config.get('container_name', 'solo-vllm')
+        elif server == ServerType.OLLAMA.value:
+            container_name = ollama_config.get('container_name', 'solo-ollama')
+        else:  # llama.cpp doesn't have a container
+            container_name = None
+            
+        # Start UI container if enabled
+        if ui:
+            typer.echo("\nStarting Solo UI...")
+            ui_port = 9000  # Default UI port
+            
+            # Start the UI container
+            ui_success = start_ui(server, container_name=container_name)
+            
+            if ui_success:
+                typer.secho("✅ Solo UI is running", fg=typer.colors.BRIGHT_GREEN, bold=True)
+                typer.secho(f"Access UI at - http://localhost:{ui_port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
+            else:
+                typer.echo("⚠️ Failed to start UI automatically.")
+                typer.echo(f"You can manually access the server at http://localhost:{port}")
+                typer.echo(f"Or use 'solo test' to test the server.")
+        else:
+            typer.secho(f"UI not started. Use 'solo test' to test the server or '--ui' flag to start the UI.", fg=typer.colors.BRIGHT_MAGENTA)
