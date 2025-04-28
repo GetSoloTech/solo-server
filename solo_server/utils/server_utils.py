@@ -14,6 +14,179 @@ from solo_server.utils.llama_cpp_utils import (is_port_in_use,
                                               preprocess_model_path, 
                                               is_llama_cpp_installed)
 
+def start_ui(server_type: str, container_name: str = None) -> bool:
+    """
+    Start the UI Docker container and connect it to the model server.
+    
+    Args:
+        server_type (str): The server type (ollama, vllm, llama.cpp)
+        container_name (str, optional): The name of the server container
+    
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    try:
+        # Define the UI container name
+        ui_container_name = "solo-ui"
+        ui_port = 9000
+        
+        # Check if the UI container already exists
+        container_exists = subprocess.run(
+            ["docker", "ps", "-aq", "-f", f"name={ui_container_name}"], 
+            capture_output=True, 
+            text=True
+        ).stdout.strip()
+        
+        # Stop and remove existing container if it's running
+        if container_exists:
+            subprocess.run(["docker", "stop", ui_container_name], check=False, capture_output=True)
+            subprocess.run(["docker", "rm", ui_container_name], check=False, capture_output=True)
+        
+        # Check if port is available
+        if is_port_in_use(ui_port):
+            typer.echo(f"⚠️ Port {ui_port} is already in use.", err=True)
+            return False
+
+        # Get server port from config for connecting to the server
+        server_port = None
+        if server_type == 'ollama':
+            server_config = get_server_config('ollama')
+            server_port = server_config.get('default_port', 11434)
+        elif server_type == 'vllm':
+            server_config = get_server_config('vllm')
+            server_port = server_config.get('default_port', 8000)
+        elif server_type == 'llama.cpp':
+            server_config = get_server_config('llama_cpp')
+            server_port = server_config.get('default_port', 8080)
+
+        # Read config.json to get active model information
+        config_path = os.path.expanduser("~/.solo_server/config.json")
+        if os.path.exists(config_path):
+            with open(config_path, 'r') as f:
+                config = json.load(f)
+                
+            active_model = config.get('active_model', {})
+            # Use the port specified in active_model if available
+            if active_model and 'port' in active_model:
+                server_port = active_model.get('port')
+                
+        typer.echo(f"Using server port: {server_port}")
+
+        # Check if solo-network exists, create if not
+        network_exists = subprocess.run(
+            ["docker", "network", "inspect", "solo-network"],
+            capture_output=True,
+            text=True
+        ).returncode == 0
+        
+        if not network_exists:
+            subprocess.run(["docker", "network", "create", "solo-network"], check=True, capture_output=True)
+            typer.echo("Created docker network: solo-network")
+        
+        # Connect the server container to the solo-network if it exists and container name is provided
+        if container_name and server_type != 'llama.cpp':
+            try:
+                # Check if container is connected to network
+                network_connected = subprocess.run(
+                    ["docker", "network", "inspect", "solo-network", "-f", f"{{{{.Containers}}}}"],
+                    capture_output=True, 
+                    text=True
+                ).stdout
+                
+                # If not connected, connect it
+                if container_name not in network_connected:
+                    subprocess.run(
+                        ["docker", "network", "connect", "solo-network", container_name], 
+                        capture_output=True,
+                        text=True
+                    )
+                    typer.echo(f"Connected Solo server to Solo UI")
+            except Exception as e:
+                # If connecting fails, we can still try to run the UI
+                typer.echo(f"Note: Could not connect server to network: {e}")
+        
+        # Check if aiaio image exists locally
+        image_exists = subprocess.run(
+            ["docker", "images", "-q", "getsolo/aiaio"], 
+            capture_output=True, 
+            text=True
+        ).stdout.strip()
+        
+        # If image doesn't exist locally, pull it
+        if not image_exists:
+            typer.echo("Setting up...")
+            try:
+                # Try to pull the image from Docker Hub
+                subprocess.run(
+                    ["docker", "pull", "getsolo/aiaio:latest"],
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+            except subprocess.CalledProcessError:
+                typer.echo("Failed to pull from Docker Hub, checking if image exists locally")
+                image_exists = subprocess.run(
+                    ["docker", "images", "-q", "getsolo/aiaio:latest"], 
+                    capture_output=True, 
+                    text=True
+                ).stdout.strip()
+                
+                if not image_exists:
+                    typer.echo(f"❌ Failed to find UI image", err=True)
+                    return False
+        
+        # Start the AIAIO UI container
+        run_cmd = [
+            "docker", "run", "-d",
+            "--name", ui_container_name,
+            "-p", f"{ui_port}:9000",  # Map external port to container's internal port
+            "--network", "solo-network",
+            "-v", f"{os.path.expanduser('~')}/.solo_server:/root/.solo_server"
+        ]
+        
+        # For llama.cpp which runs on the host, we need to add extra_hosts setting
+        # to allow the container to access the host's IP
+        if server_type == 'llama.cpp':
+            run_cmd.extend(["--add-host", "host.docker.internal:host-gateway"])
+        
+        # Add environment variables for server configuration
+        run_cmd.extend([
+            "-e", f"SOLO_SERVER_TYPE={server_type}",
+            "-e", f"SOLO_SERVER_PORT={server_port}"
+        ])
+        
+        # Add the image name (try both aiaio:latest and aiaio/latest)
+        if image_exists:
+            run_cmd.append("getsolo/aiaio:latest") 
+        else:
+            run_cmd.append("getsolo/aiaio:latest")
+        
+        result = subprocess.run(run_cmd, capture_output=True, text=True)
+        
+        if result.returncode != 0:
+            typer.echo(f"❌ Failed to start UI: {result.stderr}", err=True)
+            return False
+        
+        # Wait briefly to ensure container is running
+        time.sleep(2)
+        
+        # Check if container is running
+        is_running = subprocess.run(
+            ["docker", "ps", "-q", "-f", f"name={ui_container_name}"],
+            capture_output=True,
+            text=True
+        ).stdout.strip()
+        
+        if not is_running:
+            typer.echo("❌ UI container failed to start", err=True)
+            return False
+            
+        return True
+    
+    except Exception as e:
+        typer.echo(f"❌ Error starting UI: {e}", err=True)
+        return False
+
 def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None, 
                       os_name:str = None, port: int = None, model: str = None):
     """Setup vLLM server with Docker"""
@@ -387,7 +560,7 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
         
         if os_name == "Windows":
             # Create a log file for capturing output
-            log_dir = os.path.join(os.path.expanduser("~"), ".solo", "logs")
+            log_dir = os.path.join(os.path.expanduser("~"), ".solo_server", "logs")
             os.makedirs(log_dir, exist_ok=True)
             log_file = os.path.join(log_dir, "llama_cpp_server.log")
             
@@ -402,10 +575,28 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
             # For Unix-like systems, use terminal-specific commands
             if os_name == "Darwin":  # macOS
                 # For macOS, use AppleScript to keep the Terminal window open
-                script = f'tell app "Terminal" to do script "{" ".join(server_cmd)} ; echo \'\\nServer is running. Press Ctrl+C to stop.\'; bash"'
+                escaped_cmd = " ".join(server_cmd).replace('"', '\\"')
+                script = f'tell app "Terminal" to do script "{escaped_cmd} ; echo \\\"\\\\nServer is running. Press Ctrl+C to stop.\\\"; bash"'
+                typer.echo(f"Debug: Executing AppleScript with command: {escaped_cmd}")
                 terminal_cmd = ["osascript", "-e", script]
-                subprocess.Popen(terminal_cmd)
-                typer.echo("Server is running in a new Terminal window")
+                try:
+                    result = subprocess.Popen(terminal_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                    stdout, stderr = result.communicate(timeout=5)
+                    if stderr:
+                        typer.echo(f"Debug: AppleScript stderr: {stderr.decode('utf-8')}")
+                    typer.echo("Server is running in a new Terminal window")
+                except Exception as e:
+                    typer.echo(f"Warning: Issue launching Terminal: {e}")
+                    # Fallback to background process
+                    typer.echo("Falling back to background process...")
+                    process = subprocess.Popen(
+                        server_cmd,
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        start_new_session=True
+                    )
+                    typer.echo(f"Server is running in the background. Process ID: {process.pid}")
+                    return True
             else:  # Linux and other Unix-like systems
                 # Try to detect the terminal and keep it open
                 if shutil.which("gnome-terminal"):
@@ -426,7 +617,6 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
                         start_new_session=True
                     )
                     typer.echo(f"Server is running in the background. Process ID: {process.pid}")
-                    return True
                 
                 typer.echo("Server is running in a new terminal window")
         

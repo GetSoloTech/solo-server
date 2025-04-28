@@ -380,6 +380,7 @@ This project wouldn't be possible without the help of other projects like:
 * vllm
 * podman
 * huggingface
+* aiaio
 * llamafile
 * cog
 
