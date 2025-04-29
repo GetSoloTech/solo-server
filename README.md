@@ -22,6 +22,8 @@ pip install solo-server
 solo setup
 ```
 
+https://github.com/user-attachments/assets/22b424da-6693-497f-9d9f-c45894c520e0
+
 
 ## Features
 
