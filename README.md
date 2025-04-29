@@ -13,8 +13,19 @@ Solo Server is a lightweight server to manage hardware aware inference.
 
 </div>
 
-<div align="center">
-  <img src="assets/logo/solostart.gif" alt="SoloStart">
+
+```bash
+# Install the solo-server package using pip
+pip install solo-server
+
+# Run the solo server setup in simple mode
+solo setup
+```
+<div align="center" style={{ marginTop: "20px" }}>
+  <video width="900" controls>
+    <source src="assets/solo.mp4" type="video/mp4" />
+    Your browser does not support the video tag.
+  </video>
 </div>
 
 ## Features
