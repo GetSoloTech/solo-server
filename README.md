@@ -21,12 +21,9 @@ pip install solo-server
 # Run the solo server setup in simple mode
 solo setup
 ```
-<div align="center" style={{ marginTop: "20px" }}>
-  <video width="900" controls>
-    <source src="https://github.com/user-attachments/assets/343fa749-13c4-40b9-abc4-37c8e91f76b3" type="video/mp4" />
-    Your browser does not support the video tag.
-  </video>
-</div>
+
+https://github.com/user-attachments/assets/22b424da-6693-497f-9d9f-c45894c520e0
+
 
 ## Features
 
