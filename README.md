@@ -9,7 +9,7 @@
 [![PyPI - Downloads](https://img.shields.io/pypi/dm/solo-server)](https://pypi.org/project/solo-server/)
 [![PyPI - Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
 
-Solo Server is a lightweight server to manage hardware aware inference.
+Solo Server is a lightweight and performant server for Physical AI inference.
 
 </div>
 
