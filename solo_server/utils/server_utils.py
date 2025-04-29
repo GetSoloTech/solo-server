@@ -632,6 +632,134 @@ def is_huggingface_repo(model: str) -> bool:
     """Check if the model string is a HuggingFace repository ID."""
     return model.startswith("hf://") or model.startswith("hf.co/") or "/" in model and not model.startswith("ollama/")
 
+def check_ollama_model_exists(container_name: str, model: str) -> tuple[bool, str]:
+    """
+    Check if a model exists in Ollama.
+    
+    Args:
+        container_name (str): The name of the Ollama container
+        model (str): The model name to check
+        
+    Returns:
+        tuple[bool, str]: A tuple containing (exists, model_name)
+            - exists (bool): True if the model exists, False otherwise
+            - model_name (str): The full model name with tag if it exists, otherwise the original model name
+    """
+    try:
+        # Get the list of models from Ollama
+        model_exists = subprocess.run(
+            ["docker", "exec", container_name, "ollama", "list"],
+            capture_output=True,
+            text=True,
+            check=True
+        ).stdout
+        
+        # Check if the model has a tag
+        has_tag = ':' in model
+        if has_tag:
+            # If the model has a tag, check for exact match
+            if model in model_exists:
+                return True, model
+        else:
+            # If the model doesn't have a tag, check for the model with :latest tag
+            model_with_latest = f"{model}:latest"
+            if model_with_latest in model_exists:
+                return True, model_with_latest
+                    
+        # Model not found
+        return False, model
+    except subprocess.CalledProcessError:
+        # Error running the command
+        return False, model
+
+def pull_ollama_model(container_name: str, model: str) -> str:
+    """
+    Pull a model from Ollama.
+    
+    Args:
+        container_name (str): The name of the Ollama container
+        model (str): The model name to pull
+        
+    Returns:
+        str: The model name after pulling (may include tag)
+        
+    Raises:
+        typer.Exit: If the model could not be pulled
+    """
+    # First check if the model exists with a different tag
+    model_exists, existing_model = check_ollama_model_exists(container_name, model)
+    if model_exists:
+        typer.echo(f"✅ Model {existing_model} already exists")
+        return existing_model
+    
+    # Check if model already has a tag
+    has_tag = ':' in model
+    if has_tag:
+        # If the model has a tag, try to pull that exact model
+        typer.echo(f"📥 Pulling model {model}...")
+        try:
+            # Run the pull command 
+            process = subprocess.Popen(
+                ["docker", "exec", container_name, "ollama", "pull", model],
+                stdout=None,  # Use None to show output in real-time
+                stderr=None,  # Use None to show errors in real-time
+                text=True
+            )
+            # Wait for the process to complete
+            process.wait()
+            
+            if process.returncode != 0:
+                typer.echo(f"❌ Failed to pull model {model}", err=True)
+                raise typer.Exit(code=1)
+                
+            typer.echo(f"✅ Model {model} pulled successfully")
+            # Return the model name with tag
+            return model
+        except subprocess.CalledProcessError as e:
+            typer.echo(f"❌ Failed to pull model {model}: {e}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        # If the model doesn't have a tag, try to pull with :latest tag first
+        model_with_tag = f"{model}:latest"
+        typer.echo(f"📥 Pulling model {model_with_tag}...")
+        try:
+            # Run the pull command 
+            process = subprocess.Popen(
+                ["docker", "exec", container_name, "ollama", "pull", model_with_tag],
+                stdout=None,  # Use None to show output in real-time
+                stderr=None,  # Use None to show errors in real-time
+                text=True
+            )
+            # Wait for the process to complete
+            process.wait()
+            
+            if process.returncode != 0:
+                typer.echo(f"❌ Failed to pull model {model_with_tag}", err=True)
+                # Try without the tag as a fallback
+                typer.echo(f"Trying to pull model {model} without tag...")
+                process = subprocess.Popen(
+                    ["docker", "exec", container_name, "ollama", "pull", model],
+                    stdout=None,  # Use None to show output in real-time
+                    stderr=None,  # Use None to show errors in real-time
+                    text=True
+                )
+                # Wait for the process to complete
+                process.wait()
+                
+                if process.returncode != 0:
+                    typer.echo(f"❌ Failed to pull model {model}", err=True)
+                    raise typer.Exit(code=1)
+                    
+                typer.echo(f"✅ Model {model} pulled successfully")
+                return model
+            else:
+                typer.echo(f"✅ Model {model_with_tag} pulled successfully")
+                # Return the model name with tag
+                return model_with_tag
+        except subprocess.CalledProcessError as e:
+            typer.echo(f"❌ Failed to pull model {model_with_tag}: {e}", err=True)
+            raise typer.Exit(code=1)
+
 def pull_model_from_huggingface(container_name: str, model: str) -> str:
     """
     Pull a model from HuggingFace to Ollama.

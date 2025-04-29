@@ -14,6 +14,8 @@ from solo_server.utils.server_utils import (start_vllm_server,
                                             start_llama_cpp_server, 
                                             is_huggingface_repo, 
                                             pull_model_from_huggingface,
+                                            check_ollama_model_exists,
+                                            pull_ollama_model,
                                             start_ui)
 from solo_server.utils.docker_utils import start_docker_engine
 
@@ -150,23 +152,15 @@ def serve(
         try:
             # Check if model exists
             container_name = ollama_config.get('container_name', 'solo-ollama')
-            model_exists = subprocess.run(
-                ["docker", "exec", container_name, "ollama", "list"],
-                capture_output=True,
-                text=True,
-                check=True
-            ).stdout
             
             # Check if this is a HuggingFace model
             if is_huggingface_repo(model):
                 # Pull from HuggingFace
                 model = pull_model_from_huggingface(container_name, model)
-            elif model not in model_exists:
-                typer.echo(f"📥 Pulling model {model}...")
-                subprocess.run(
-                    ["docker", "exec", container_name, "ollama", "pull", model],
-                    check=True
-                )
+            else:
+                # Pull or use existing Ollama model
+                model = pull_ollama_model(container_name, model)
+                        
             success = True
         except subprocess.CalledProcessError as e:
             typer.echo(f"❌ Failed to pull model: {e}", err=True)
@@ -217,7 +211,7 @@ def serve(
         # Print server information
         typer.secho("✅ Solo Server is running", fg=typer.colors.BRIGHT_GREEN, bold=True)
         typer.secho(f"Model  - {display_model}", fg=typer.colors.BRIGHT_CYAN, bold=True)
-        typer.secho(f"URL    - http://localhost:{port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
+        typer.secho(f"Access Server at - http://localhost:{port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
         
         # Get container name based on server type
         if server == ServerType.VLLM.value:
