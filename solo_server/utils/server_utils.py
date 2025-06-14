@@ -762,9 +762,25 @@ def pull_ollama_model(container_name: str, model: str) -> str:
 
 def start_lerobot_server(gpu_enabled: bool = False, gpu_vendor: str = None, port: int = None, model_path: str = None):
     """
-    Start a LeRobot server for robot control inference.
+    Start a LeRobot server container for robot control policies.
+    
+    This function launches a Docker container with the LeRobot endpoint, providing
+    hardware passthrough for USB devices (robot motors) and cameras. It supports
+    both mock mode (for development) and real hardware control.
     
     Args:
+        gpu_enabled (bool): Whether to enable GPU acceleration
+        gpu_vendor (str): GPU vendor ('nvidia', 'amd', 'apple', or None)
+        port (int): Port to expose the API on (default: 5070)
+        model_path (str): HuggingFace model ID (e.g., 'lerobot/act_so101')
+        
+    Returns:
+        bool: True if server started successfully, False otherwise
+        
+    Hardware Support:
+        - USB devices: /dev/ttyUSB0 (robot motor controllers)
+        - Cameras: /dev/video0 (robot vision)
+        - GPUs: NVIDIA via --gpus all flag
         gpu_enabled (bool): Whether to use GPU
         gpu_vendor (str): GPU vendor (NVIDIA, AMD, Apple Silicon)
         port (int): Port to run the server on

@@ -1,5 +1,8 @@
 """
 LeRobot LitServe Endpoint for Solo Server
+
+Built by Devinder Sodhi with assistance from Claude
+
 Provides robot control inference with Physical AI models
 """
 import torch

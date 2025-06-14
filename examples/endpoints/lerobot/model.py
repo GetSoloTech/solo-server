@@ -1,5 +1,8 @@
 """
 LeRobot Model Implementation
+
+Built by Devinder Sodhi with assistance from Claude
+
 Handles the actual robot policy loading and inference
 """
 import torch
@@ -48,28 +51,46 @@ class LeRobotModel:
         # Initialize robot hardware
         if self.mock_mode:
             self.robot = MockRobot()
+            print("[INFO] Running in mock hardware mode")
         else:
             # Real hardware initialization
-            # self.robot = self._init_hardware()
-            pass
+            try:
+                self.robot = self._init_hardware()
+                print(f"[INFO] Connected to real robot hardware")
+            except Exception as e:
+                print(f"[WARNING] Failed to initialize hardware: {e}")
+                print("[WARNING] Falling back to mock mode")
+                self.mock_mode = True
+                self.robot = MockRobot()
     
     def _init_hardware(self):
         """Initialize real robot hardware"""
-        # This would be implemented based on robot type
-        # Example for SO101:
-        # motor_bus = FeetechMotorsBus(
-        #     port="/dev/ttyUSB0",
-        #     motors={
-        #         "shoulder_pan": (1, "sts3215"),
-        #         "shoulder_lift": (2, "sts3215"),
-        #         "elbow_flex": (3, "sts3215"),
-        #         "wrist_flex": (4, "sts3215"),
-        #         "wrist_roll": (5, "sts3215"),
-        #         "gripper": (6, "sts3215"),
-        #     }
-        # )
-        # return motor_bus
-        pass
+        # Import hardware modules when needed
+        try:
+            from lerobot.common.motors.feetech import FeetechMotorsBus
+            from lerobot.common.motors import MotorNormMode
+            
+            # Determine robot type from model path
+            if "so101" in self.model_path.lower() or "so100" in self.model_path.lower():
+                # SO101 robot configuration
+                motor_bus = FeetechMotorsBus(
+                    port="/dev/ttyUSB0",
+                    motors={
+                        "shoulder_pan": (1, "sts3215"),
+                        "shoulder_lift": (2, "sts3215"),
+                        "elbow_flex": (3, "sts3215"),
+                        "wrist_flex": (4, "sts3215"),
+                        "wrist_roll": (5, "sts3215"),
+                        "gripper": (6, "sts3215"),
+                    }
+                )
+                motor_bus.connect()
+                return motor_bus
+            else:
+                raise NotImplementedError(f"Hardware support not implemented for {self.model_path}")
+                
+        except ImportError as e:
+            raise RuntimeError(f"LeRobot hardware modules not available: {e}")
     
     def predict(self, observation: Dict[str, Any]) -> np.ndarray:
         """
@@ -122,8 +143,22 @@ class LeRobotModel:
         # Apply safety limits
         action_np = np.clip(action_np, -1.0, 1.0)
         
-        # Scale to robot's action space if needed
-        # This would be robot-specific
+        # If real hardware, send action to robot
+        if not self.mock_mode and hasattr(self.robot, 'write'):
+            try:
+                # Send action to robot motors
+                # Actions are expected to be in normalized range [-1, 1]
+                motor_positions = {}
+                motor_names = ["shoulder_pan", "shoulder_lift", "elbow_flex", 
+                              "wrist_flex", "wrist_roll", "gripper"]
+                
+                for i, (name, value) in enumerate(zip(motor_names, action_np)):
+                    if i < len(action_np):
+                        motor_positions[name] = value
+                
+                self.robot.write("goal_position", motor_positions)
+            except Exception as e:
+                print(f"[WARNING] Failed to send action to robot: {e}")
         
         return action_np
     
