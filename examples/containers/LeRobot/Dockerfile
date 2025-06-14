@@ -12,6 +12,30 @@
     ARG LEROBOT_REPO=huggingface/lerobot/
     ARG LEROBOT_BRANCH=main
     
+    # Install system dependencies
+    RUN apt-get update && apt-get install -y \
+        git \
+        gcc \
+        g++ \
+        python3-dev \
+        libgl1-mesa-glx \
+        libglib2.0-0 \
+        && rm -rf /var/lib/apt/lists/*
+    
+    # Install Python dependencies that LeRobot needs
+    # Since BASE_IMAGE might not have them pre-installed
+    # Install PyTorch first with CPU-only builds
+    RUN pip3 install --no-cache-dir \
+        torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    
+    # Install other dependencies
+    RUN pip3 install --no-cache-dir \
+        transformers \
+        opencv-python \
+        h5py \
+        av \
+        huggingface-hub
+    
     RUN git clone --branch=${LEROBOT_BRANCH} --depth=1 https://github.com/${LEROBOT_REPO} /opt/lerobot && \
         cd /opt/lerobot && \
         sed 's|^python.*||' -i pyproject.toml && \
@@ -69,4 +93,15 @@
     
     RUN echo -e "* soft core 0\n* hard core 0" >> /etc/security/limits.conf
     
-    CMD /start_jupyter && speech-dispatcher --spawn  && /bin/bash
+    # Solo Server endpoint integration
+    COPY examples/endpoints/lerobot/server.py /opt/lerobot/
+    COPY examples/endpoints/lerobot/model.py /opt/lerobot/
+    RUN pip3 install litserve>=0.2.0
+    
+    # Environment for server
+    ENV PORT=5070
+    ENV MOCK_HARDWARE=false
+    EXPOSE 5070
+    
+    # Run server instead of Jupyter
+    CMD ["python", "/opt/lerobot/server.py"]
