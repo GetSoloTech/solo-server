@@ -14,12 +14,13 @@ import time
 # Try to import LeRobot, fall back to mock if not available
 try:
     from lerobot.common.policies.factory import make_policy
-    from lerobot.common.robot_devices.motors.feetech import FeetechMotorsBus
-    from lerobot.common.robot_devices.cameras.opencv import OpenCVCamera
+    from lerobot.common.motors.feetech import FeetechMotorsBus
+    from lerobot.common.cameras.opencv import OpenCVCamera
     LEROBOT_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     LEROBOT_AVAILABLE = False
-    print("[Warning] LeRobot not installed, using mock implementation")
+    print(f"[Warning] LeRobot import error: {e}")
+    print("[Warning] Using mock implementation")
 
 
 class LeRobotModel:
@@ -45,8 +46,10 @@ class LeRobotModel:
             if not self.mock_mode and not LEROBOT_AVAILABLE:
                 print("[Warning] LeRobot not available, using mock policy")
         else:
-            # Real implementation
-            self.policy = make_policy(model_path, device=device)
+            # For real hardware, use mock policy for now (avoids model download issues)
+            # TODO: Load real pretrained models once available
+            self.policy = MockPolicy(model_path, device)
+            print("[Info] Using mock policy with real hardware")
         
         # Initialize robot hardware
         if self.mock_mode:
@@ -63,18 +66,44 @@ class LeRobotModel:
                 self.mock_mode = True
                 self.robot = MockRobot()
     
+    def _load_pretrained_policy(self, model_path: str, device: str):
+        """Load a pretrained policy from HuggingFace"""
+        # Determine policy type from model path
+        if "act" in model_path.lower():
+            from lerobot.common.policies.act.modeling_act import ACTPolicy
+            policy = ACTPolicy.from_pretrained(model_path)
+        elif "diffusion" in model_path.lower():
+            from lerobot.common.policies.diffusion.modeling_diffusion import DiffusionPolicy
+            policy = DiffusionPolicy.from_pretrained(model_path)
+        elif "tdmpc" in model_path.lower():
+            from lerobot.common.policies.tdmpc.modeling_tdmpc import TDMPCPolicy
+            policy = TDMPCPolicy.from_pretrained(model_path)
+        elif "smolvla" in model_path.lower():
+            from lerobot.common.policies.smolvla.modeling_smolvla import SmolVLAPolicy
+            policy = SmolVLAPolicy.from_pretrained(model_path)
+        else:
+            # Try ACT as default
+            from lerobot.common.policies.act.modeling_act import ACTPolicy
+            policy = ACTPolicy.from_pretrained(model_path)
+        
+        # Move to device
+        policy = policy.to(device)
+        policy.eval()  # Set to evaluation mode
+        return policy
+    
     def _init_hardware(self):
-        """Initialize real robot hardware"""
-        # Import hardware modules when needed
+        """Initialize real robot hardware using LeRobot's robot system"""
         try:
-            from lerobot.common.motors.feetech import FeetechMotorsBus
-            from lerobot.common.motors import MotorNormMode
+            from lerobot.common.robots import make_robot_from_config
+            from lerobot.common.robots.so101_follower import SO101FollowerConfig
+            from lerobot.common.robots.so100_follower import SO100FollowerConfig
             
             # Determine robot type from model path
-            if "so101" in self.model_path.lower() or "so100" in self.model_path.lower():
-                # SO101 robot configuration
-                motor_bus = FeetechMotorsBus(
-                    port="/dev/ttyUSB0",
+            if "so101" in self.model_path.lower():
+                # Create SO101 configuration
+                config = SO101FollowerConfig(
+                    port=os.environ.get("ROBOT_PORT", "/dev/ttyUSB0"),
+                    use_degrees=True,
                     motors={
                         "shoulder_pan": (1, "sts3215"),
                         "shoulder_lift": (2, "sts3215"),
@@ -84,8 +113,18 @@ class LeRobotModel:
                         "gripper": (6, "sts3215"),
                     }
                 )
-                motor_bus.connect()
-                return motor_bus
+                # Create robot instance
+                robot = make_robot_from_config(config)
+                robot.connect()
+                return robot
+            elif "so100" in self.model_path.lower():
+                # Create SO100 configuration
+                config = SO100FollowerConfig(
+                    port=os.environ.get("ROBOT_PORT", "/dev/ttyUSB0"),
+                )
+                robot = make_robot_from_config(config)
+                robot.connect()
+                return robot
             else:
                 raise NotImplementedError(f"Hardware support not implemented for {self.model_path}")
                 
@@ -144,19 +183,24 @@ class LeRobotModel:
         action_np = np.clip(action_np, -1.0, 1.0)
         
         # If real hardware, send action to robot
-        if not self.mock_mode and hasattr(self.robot, 'write'):
+        if not self.mock_mode and self.robot is not None:
             try:
-                # Send action to robot motors
-                # Actions are expected to be in normalized range [-1, 1]
-                motor_positions = {}
+                # LeRobot robot interface uses write() method with position dict
                 motor_names = ["shoulder_pan", "shoulder_lift", "elbow_flex", 
                               "wrist_flex", "wrist_roll", "gripper"]
                 
-                for i, (name, value) in enumerate(zip(motor_names, action_np)):
+                # Create position dictionary from action array
+                positions = {}
+                for i, name in enumerate(motor_names):
                     if i < len(action_np):
-                        motor_positions[name] = value
+                        # Actions from policy are in [-1, 1], robot expects degrees or normalized
+                        positions[name] = float(action_np[i])
                 
-                self.robot.write("goal_position", motor_positions)
+                # Send to robot using LeRobot's interface
+                if hasattr(self.robot, 'write'):
+                    self.robot.write("goal_position", positions)
+                else:
+                    print(f"[WARNING] Robot does not have write method")
             except Exception as e:
                 print(f"[WARNING] Failed to send action to robot: {e}")
         
@@ -315,15 +359,21 @@ class AlohaModel(LeRobotModel):
 # Model factory
 def create_model(model_path: str, device: str = "cuda") -> LeRobotModel:
     """
-    Factory function to create appropriate model based on model path
+    Factory function to create the appropriate model
     
-    Args:
-        model_path: HuggingFace model ID or local path
-        device: PyTorch device
-        
-    Returns:
-        Appropriate model instance
+    Special handling for local models:
+    - "local:so101" - Create SO101 policy without downloads
+    - "local:so100" - Create SO100 policy without downloads
+    - "local:aloha" - Create ALOHA policy without downloads
     """
+    # Check for local model prefix
+    if model_path.startswith("local:"):
+        try:
+            from .local_model import LocalLeRobotModel
+        except ImportError:
+            from local_model import LocalLeRobotModel
+        robot_type = model_path.split(":")[1]
+        return LocalLeRobotModel(robot_type=robot_type, device=device)
     model_lower = model_path.lower()
     
     if "so101" in model_lower or "so100" in model_lower:

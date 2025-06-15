@@ -25,10 +25,20 @@ class LeRobotAPI(ls.LitAPI):
     
     def setup(self, device):
         """Initialize the policy and robot connection"""
+        # Handle device selection for M4 Mac
+        if str(device).lower() in ["cuda", "0"] and not torch.cuda.is_available():
+            if torch.backends.mps.is_available():
+                device = "mps"
+                print(f"CUDA not available, using MPS (Apple Silicon)")
+            else:
+                device = "cpu"
+                print(f"CUDA not available, using CPU")
+        
         self.device = device
         
         # Get model path from environment or use default
-        model_path = os.environ.get("LEROBOT_MODEL", "lerobot/act_so101")
+        model_path = os.environ.get("LEROBOT_MODEL", "local:so101")
+        print(f"Loading model: {model_path} on device: {device}")
         
         # Initialize model using the factory
         self.model = create_model(model_path, device)
