@@ -1,0 +1,30 @@
+# Minimal container to test Solo Server + LeRobot integration
+FROM python:3.10-slim
+
+WORKDIR /app
+
+# Copy Solo Server code
+COPY . /app/
+
+# Install Solo Server
+RUN pip install --no-cache-dir -e .
+
+# Install minimal dependencies for testing
+RUN pip install --no-cache-dir requests
+
+# Create a test script
+RUN echo '#!/bin/bash\n\
+echo "=== Testing Solo Server + LeRobot Integration ==="\n\
+echo ""\n\
+echo "1. Check if lerobot is in server types:"\n\
+solo serve --help | grep -A5 -B5 lerobot || echo "Not found in help"\n\
+echo ""\n\
+echo "2. Check configuration:"\n\
+python3 -c "from solo_server.config.config_loader import get_server_config; import json; print(json.dumps(get_server_config(\"lerobot\"), indent=2))"\n\
+echo ""\n\
+echo "3. Test serve command (will fail without docker):"\n\
+solo serve -s lerobot -m lerobot/act_so101 --no-ui || echo "Expected failure - no docker image"\n\
+echo ""\n\
+echo "=== Integration test complete ==="' > /test_integration.sh && chmod +x /test_integration.sh
+
+CMD ["/test_integration.sh"]

@@ -11,7 +11,8 @@ from solo_server.config.config_loader import get_server_config
 from solo_server.utils.hardware import detect_hardware
 from solo_server.utils.server_utils import (start_vllm_server, 
                                             start_ollama_server, 
-                                            start_llama_cpp_server, 
+                                            start_llama_cpp_server,
+                                            start_lerobot_server, 
                                             is_huggingface_repo, 
                                             pull_model_from_huggingface,
                                             check_ollama_model_exists,
@@ -23,6 +24,7 @@ class ServerType(str, Enum):
     OLLAMA = "ollama"
     VLLM = "vllm"
     LLAMACPP = "llama.cpp"
+    LEROBOT = "lerobot"
 
 def serve(
     model: Optional[str] = typer.Option(None, "--model", "-m", help="""Model name or path. Can be:
@@ -80,6 +82,7 @@ def serve(
     vllm_config = get_server_config('vllm')
     ollama_config = get_server_config('ollama')
     llama_cpp_config = get_server_config('llama_cpp')
+    lerobot_config = get_server_config('lerobot')
     
     # Set default models based on server type
     if not model:
@@ -89,6 +92,8 @@ def serve(
             model = ollama_config.get('default_model', "llama3.2")
         elif server == ServerType.LLAMACPP.value:
             model = llama_cpp_config.get('default_model', "bartowski/Llama-3.2-1B-Instruct-GGUF/llama-3.2-1B-Instruct-Q4_K_M.gguf")
+        elif server == ServerType.LEROBOT.value:
+            model = lerobot_config.get('default_model', "lerobot/act_so101")
     
     if not port:
         if server == ServerType.VLLM.value:
@@ -97,9 +102,11 @@ def serve(
             port = ollama_config.get('default_port', 5070)
         elif server == ServerType.LLAMACPP.value:
             port = llama_cpp_config.get('default_port', 5070)
+        elif server == ServerType.LEROBOT.value:
+            port = lerobot_config.get('default_port', 5070)
     
     # Check Docker is installed and running for Docker-based servers
-    if server in [ServerType.VLLM.value, ServerType.OLLAMA.value]:
+    if server in [ServerType.VLLM.value, ServerType.OLLAMA.value, ServerType.LEROBOT.value]:
         # Check if Docker is installed
         docker_installed = True
         try:
@@ -173,6 +180,13 @@ def serve(
             typer.echo("❌ Failed to start Solo server", err=True)
             raise typer.Exit(code=1)
     
+    elif server == ServerType.LEROBOT.value:
+        # Start LeRobot server for robot control
+        success = start_lerobot_server(gpu_enabled, gpu_vendor, port, model)
+        if not success:
+            typer.echo("❌ Failed to start LeRobot server", err=True)
+            raise typer.Exit(code=1)
+    
     # Display server information in the requested format
     if success:
         # Get formatted model name for display
@@ -218,6 +232,8 @@ def serve(
             container_name = vllm_config.get('container_name', 'solo-vllm')
         elif server == ServerType.OLLAMA.value:
             container_name = ollama_config.get('container_name', 'solo-ollama')
+        elif server == ServerType.LEROBOT.value:
+            container_name = lerobot_config.get('container_name', 'solo-lerobot')
         else:  # llama.cpp doesn't have a container
             container_name = None
             

@@ -27,6 +27,16 @@ servers:
       nvidia: "-DGGML_CUDA=on"
       amd: "-DGGML_HIPBLAS=on"
       apple_silicon: "-DGGML_METAL=on"
+  
+  lerobot:
+    default_model: "lerobot/act_so101"
+    default_port: 5070
+    container_name: "solo-lerobot"
+    images:
+      nvidia: "getsolo/lerobot:cuda"
+      amd: "getsolo/lerobot:rocm"
+      apple: "getsolo/lerobot:arm"
+      cpu: "getsolo/lerobot:cpu"
 
 # Paths
 paths:
