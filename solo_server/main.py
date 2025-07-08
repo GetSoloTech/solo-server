@@ -7,13 +7,14 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, List
 from rich.console import Console
+from rich.table import Table
 from rich.panel import Panel
 from rich.prompt import Prompt, Confirm
 
 from solo_server.config import CONFIG_PATH
-from solo_server.utils.hardware import hardware_info
+from solo_server.utils.hardware import hardware_info, is_ollama_natively_installed, check_ollama_service_status
 from solo_server.utils.nvidia import is_cuda_toolkit_installed, check_nvidia_toolkit
-from solo_server.config.config_loader import get_server_config
+from solo_server.config.config_loader import get_server_config, get_repository_config
 from solo_server.utils.docker_utils import start_docker_engine
 
 console = Console()
@@ -21,35 +22,28 @@ console = Console()
 class Domain(str, Enum):
     PERSONAL = "Personal"
     EDUCATION = "Education"
+    ROBOTICS = "Robotics"
     AGRICULTURE = "Agriculture"
     SOFTWARE = "Software"
     HEALTHCARE = "Healthcare"
     FORENSICS = "Forensics"
-    ROBOTICS = "Robotics"
     ENTERPRISE = "Enterprise"
     CUSTOM = "Custom"
-
-class Role(str, Enum):
-    STUDENT = "Student"
-    TEACHER = "Teacher"
-    FARM_MANAGER = "Farm Manager"
-    DEVELOPER = "Full-Stack Developer"
-    DOCTOR = "Doctor"
-    OTHER = "Other"
 
 class ServerType(str, Enum):
     OLLAMA = "ollama"
     VLLM = "vllm"
     LLAMACPP = "llama.cpp"
+    LEROBOT = "lerobot"
 
 def setup():
     """
     Set up Solo Server environment with interactive prompts and saves configuration to config.json.
     """
-    typer.echo("\n💾 Setting up Solo Server...\n")
+    typer.echo("💾 Setting up Solo Server...")
     
     # Check system info and display hardware info
-    typer.echo("🔍 Checking system information...")
+    typer.echo("🔍 Checking system information...\n")
     cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name = hardware_info(typer)
     
     # GPU Check and Configuration
@@ -123,11 +117,18 @@ def setup():
         typer.echo("\n⚠️  No GPU detected. Using CPU for inference.")
     
     # Domain Selection
-    typer.echo("\n🏢 Choose the domain that best describes your field:")
-    for i, domain in enumerate(Domain, 1):
-        typer.echo(f"  {i}. {domain.value}")
+    typer.echo("\n🏢 Choose the domain that best describes your field:") 
+    console = Console()
+    domain_table = Table()
+    domain_table.add_column("ID", style="cyan", justify="center")
+    domain_table.add_column("Domain", style="green")
     
-    domain_choice = int(Prompt.ask("Enter the number of your domain", default="1"))
+    for i, domain in enumerate(Domain, 1):
+        domain_table.add_row(str(i), domain.value)
+    
+    console.print(domain_table)
+    
+    domain_choice = int(Prompt.ask("Enter your domain ID", default="1"))
     domain = list(Domain)[domain_choice - 1] if 1 <= domain_choice <= len(Domain) else Domain.PERSONAL
     
     # If custom domain, ask for specific domain
@@ -135,31 +136,27 @@ def setup():
     if domain == Domain.CUSTOM:
         custom_domain = Prompt.ask("Enter your custom domain")
     
-    # Role Selection
-    typer.echo("\n👤 What is your role in your domain?")
-    for i, role in enumerate(Role, 1):
-        typer.echo(f"  {i}. {role.value}")
-    
-    role_choice = int(Prompt.ask("Enter the number of your role", default="1"))
-    role = list(Role)[role_choice - 1] if 1 <= role_choice <= len(Role) else Role.OTHER
-    
-    # If other role, ask for specific role
-    custom_role = None
-    if role == Role.OTHER:
-        custom_role = Prompt.ask("Enter your specific role")
-    
     # Server Selection
     typer.echo("\n🖥️  Select a server type:")
+    server_table = Table()
+    server_table.add_column("ID", style="cyan", justify="center")
+    server_table.add_column("Server", style="green")
+    server_table.add_column("Description", style="yellow")
+    
     for i, server in enumerate(ServerType, 1):
         if server == ServerType.VLLM:
-            description = "(Best for high-performance GPU inference)"
+            description = "Best for high-performance GPU inference"
         elif server == ServerType.OLLAMA:
-            description = "(Good balance of performance and ease of use)"
-        else:  # LLAMACPP
-            description = "(Best for CPU or lower-resource machines)"
-        typer.echo(f"  {i}. {server.value} {description}")
+            description = "Good balance of performance and ease of use"
+        elif server == ServerType.LLAMACPP:
+            description = "Best for CPU or lower-resource machines"
+        elif server == ServerType.LEROBOT:
+            description = "Best for Robotics"
+        server_table.add_row(str(i), server.value, description)
     
-    server_choice = int(Prompt.ask("Enter the number of your preferred server", default="1"))
+    console.print(server_table)
+    
+    server_choice = int(Prompt.ask("Enter your preferred server ID", default="1"))
     server = list(ServerType)[server_choice - 1] if 1 <= server_choice <= len(ServerType) else ServerType.OLLAMA
     
     # Ask for HuggingFace token for vLLM or llama.cpp setup
@@ -215,7 +212,6 @@ def setup():
     
     config['user'].update({
         'domain': custom_domain if domain == Domain.CUSTOM else domain.value,
-        'role': custom_role if role == Role.OTHER else role.value
     })
     
     if 'server' not in config:
@@ -229,10 +225,68 @@ def setup():
     if hf_token:
         config['hugging_face'] = {'token': hf_token}
     
+    
     # Setup environment based on server type
-    if server == ServerType.OLLAMA or server == ServerType.VLLM:
-        typer.echo(f"\n🐳 Setting up Docker environment for Solo Server...")
-        
+    if server == ServerType.OLLAMA:
+        # Check for native Ollama installation first
+        if is_ollama_natively_installed() and check_ollama_service_status():
+            typer.echo("Native Ollama installation detected..")
+
+            # Save native installation info to config
+            if 'environment' not in config:
+                config['environment'] = {}
+            config['environment']['ollama_native'] = True
+        else:
+            if 'environment' not in config:
+                config['environment'] = {}
+            config['environment']['ollama_native'] = False
+            
+            # Proceed with Docker setup
+            # Check if Docker is installed and running
+            docker_running = False
+            try:
+                # Check if Docker is installed
+                subprocess.run(["docker", "--version"], check=True, capture_output=True)
+                
+                # Try to get Docker info to check if it's running
+                try:
+                    subprocess.run(["docker", "info"], check=True, capture_output=True)
+                    docker_running = True
+                    typer.echo("✅ Docker is running.")
+                except subprocess.CalledProcessError:
+                    # Docker is installed but not running
+                    typer.echo("⚠️  Docker is installed but not running. Trying to start Docker...")
+                    docker_running = start_docker_engine(os_name)
+                    
+                    if not docker_running:
+                        typer.echo("❌ Could not start Docker automatically.")
+                        typer.echo("Please start Docker manually and run 'solo setup' again.")
+                        return
+            except FileNotFoundError:
+                typer.echo("❌ Docker is not installed on your system.")
+                typer.echo("Please install Docker Desktop from https://www.docker.com/products/docker-desktop/")
+                typer.echo("After installation, run 'solo setup' again.")
+                return
+            
+            # Pull the appropriate Docker image
+            try:
+                server_config = get_server_config('ollama')
+                image = server_config.get('images', {}).get('default', "ollama/ollama")
+                if gpu_vendor == "AMD" and use_gpu:
+                    image = server_config.get('images', {}).get('amd', "ollama/ollama:rocm")
+                
+                typer.echo(f"\n📥 Pulling Docker image: {image}")
+                subprocess.run(["docker", "pull", image], check=True)
+                
+            except subprocess.CalledProcessError as e:
+                typer.echo(f"\n❌ Error setting up Docker environment: {e}", err=True)
+                typer.echo("Please check your Docker configuration and run 'solo setup' again.")
+                return
+            except Exception as e:
+                typer.echo(f"\n❌ An unexpected error occurred: {e}", err=True)
+                return
+            
+    elif server == ServerType.VLLM:
         # Check if Docker is installed and running
         docker_running = False
         try:
@@ -259,30 +313,20 @@ def setup():
             typer.echo("After installation, run 'solo setup' again.")
             return
         
-        # Pull the appropriate Docker image based on server type
+        # Pull the appropriate Docker image
         try:
-            if server == ServerType.OLLAMA:
-                server_config = get_server_config('ollama')
-                image = server_config.get('images', {}).get('default', "ollama/ollama")
-                if gpu_vendor == "AMD" and use_gpu:
-                    image = server_config.get('images', {}).get('amd', "ollama/ollama:rocm")
-                
-                typer.echo(f"\n📥 Pulling Docker image: {image}")
-                subprocess.run(["docker", "pull", image], check=True)
-                
-            elif server == ServerType.VLLM:
-                server_config = get_server_config('vllm')
-                if gpu_vendor == "NVIDIA" and use_gpu:
-                    image = server_config.get('images', {}).get('nvidia', "vllm/vllm-openai:latest")
-                elif gpu_vendor == "AMD" and use_gpu:
-                    image = server_config.get('images', {}).get('amd', "rocm/vllm")
-                elif cpu_model == "Apple":
-                    image = server_config.get('images', {}).get('apple', "getsolo/vllm-arm")
-                else:
-                    image = server_config.get('images', {}).get('cpu', "getsolo/vllm-cpu")
-                
-                typer.echo(f"\n📥 Pulling Docker image: {image}")
-                subprocess.run(["docker", "pull", image], check=True)
+            server_config = get_server_config('vllm')
+            if gpu_vendor == "NVIDIA" and use_gpu:
+                image = server_config.get('images', {}).get('nvidia', "vllm/vllm-openai:latest")
+            elif gpu_vendor == "AMD" and use_gpu:
+                image = server_config.get('images', {}).get('amd', "rocm/vllm")
+            elif cpu_model == "Apple":
+                image = server_config.get('images', {}).get('apple', "getsolo/vllm-arm")
+            else:
+                image = server_config.get('images', {}).get('cpu', "getsolo/vllm-cpu")
+            
+            typer.echo(f"\n📥 Pulling Docker image: {image}")
+            subprocess.run(["docker", "pull", image], check=True)
         
         except subprocess.CalledProcessError as e:
             typer.echo(f"\n❌ Error setting up Docker environment: {e}", err=True)
@@ -292,8 +336,9 @@ def setup():
             typer.echo(f"\n❌ An unexpected error occurred: {e}", err=True)
             return
             
+    
     elif server == ServerType.LLAMACPP:
-        typer.echo("\n⚙️  Setting up environment...")
+        typer.echo("\n⚙️  Setting up llama.cpp environment...")
         # For llama.cpp, we don't need Docker, but we need to install the Python package
         try:
             import llama_cpp
@@ -321,6 +366,77 @@ def setup():
                 typer.echo("❌ Failed to install package. Please check your Python environment.")
                 return
 
+    elif server == ServerType.LEROBOT:
+        typer.echo("\n🤖 Setting up LeRobot environment...")
+
+        try:
+            import lerobot
+            typer.echo("✅ LeRobot package is already installed.")
+        except ImportError:
+            typer.echo("📥 Installing LeRobot package and dependencies...")
+        
+            # Check if uv is installed on the machine
+            is_uv_available = subprocess.run(["uv", "--version"], check=False, capture_output=True)
+            using_uv = False
+            
+            if is_uv_available.returncode == 0:
+                using_uv = Confirm.ask("Are you using uv for virtual environment management?", default=False)
+            
+            # Save package manager info to config
+            if 'environment' not in config:
+                config['environment'] = {}
+            config['environment']['package_manager'] = 'uv' if using_uv else 'pip'
+            
+            # Install lerobot from GitHub repo
+            typer.echo("📥 Installing LeRobot...")
+            repo_config = get_repository_config()
+            lerobot_repo = repo_config.get('lerobot', 'https://github.com/GetSoloTech/lerobot.git')
+            
+            # Required additional packages
+            additional_packages = [
+                "transformers>=4.50.3",
+                "num2words>=0.5.14", 
+                "accelerate>=1.7.0",
+                "safetensors>=0.4.3",
+                "feetech-servo-sdk>=1.0.0"
+            ]
+            
+            # Set environment variable to skip LFS files
+            env = os.environ.copy()
+            env['GIT_LFS_SKIP_SMUDGE'] = '1'
+
+            try:
+                # Install lerobot
+                if using_uv:
+                    install_cmd = ["uv", "pip", "install", f"git+{lerobot_repo}"]
+                else:
+                    install_cmd = ["pip", "install", f"git+{lerobot_repo}"]
+                
+                result = subprocess.run(install_cmd, check=True, text=True, env=env)
+                typer.echo("✅ LeRobot package installed successfully")
+                
+                # Install additional dependencies
+                typer.echo("📥 Installing additional dependencies...")
+                for package in additional_packages:
+                    typer.echo(f"Installing {package}...")
+                    if using_uv:
+                        dep_cmd = ["uv", "pip", "install", package]
+                    else:
+                        dep_cmd = ["pip", "install", package]
+                    
+                    subprocess.run(dep_cmd, check=True, text=True)
+                
+                typer.echo("✅ All dependencies installed successfully")
+                
+            except subprocess.CalledProcessError as e:
+                typer.echo(f"❌ Failed to install LeRobot package or dependencies: {e}")
+                if hasattr(e, 'stderr') and e.stderr:
+                    typer.echo(f"Error output: {e.stderr}")
+                return
+        
+        # Package installation successful
+        lerobot_setup_success = True
+
     # Create configuration directory if it doesn't exist
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
@@ -329,5 +445,18 @@ def setup():
         json.dump(config, f, indent=4)
     
     typer.echo(f"\n✅ Configuration saved to {CONFIG_PATH}")
-    typer.echo("🎉 Solo Server setup completed successfully!")
-    typer.echo(f"Use 'solo serve -m model_name' to start serving your model.")
+    
+    # Provide appropriate completion message based on server type and success
+    if server == ServerType.LEROBOT:
+        if lerobot_setup_success:
+            typer.echo("🎉 LeRobot package and dependencies installed successfully!")
+            typer.echo("📱 Next steps:")
+            typer.echo("   • Run 'solo lerobot' for full setup (motors + calibration + teleoperation)")
+            typer.echo("   • Run 'solo lerobot --calibrate' to configure arms only")
+            typer.echo("   • Run 'solo lerobot --teleop' to start teleoperation (if already calibrated)")
+        else:
+            typer.echo("❌ LeRobot package installation failed.")
+            typer.secho("Please check your internet connection and try 'solo setup' again.", fg=typer.colors.RED)
+    else:
+        typer.echo("🎉 Solo Server setup completed successfully!")
+        typer.secho(f"Use 'solo serve -m model_name' to start serving your model.", fg=typer.colors.GREEN)

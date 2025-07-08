@@ -5,12 +5,64 @@ import typer
 import subprocess
 import os
 import json
+import shutil
+import requests
 from typing import Tuple
 from rich.console import Console
 from rich.panel import Panel
 from solo_server.config import CONFIG_PATH
 
 console = Console()
+
+def is_ollama_natively_installed() -> bool:
+    """
+    Check if Ollama is natively installed on the system.
+    
+    Returns:
+        bool: True if Ollama is installed and accessible, False otherwise
+    """
+    # Check if ollama command is available in PATH
+    if shutil.which("ollama") is not None:
+        try:
+            # Try to run ollama --version to verify it's working
+            result = subprocess.run(
+                ["ollama", "--version"], 
+                capture_output=True, 
+                text=True, 
+                timeout=10
+            )
+            if result.returncode == 0:
+                return True
+        except (subprocess.TimeoutExpired, subprocess.CalledProcessError, FileNotFoundError):
+            pass
+    
+    return False
+
+def check_ollama_service_status() -> bool:
+    """
+    Check if Ollama service is running.
+    
+    Returns:
+        bool: True if Ollama service is running, False otherwise
+    """
+    try:
+        # Try to connect to Ollama's default port
+        import socket
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.settimeout(2)
+        result = sock.connect_ex(('localhost', 11434))
+        sock.close()
+        
+        if result == 0:
+            # Port is open, try to make a simple API call
+            try:
+                response = requests.get("http://localhost:11434/api/tags", timeout=5)
+                return response.status_code == 200
+            except:
+                return False
+        return False
+    except:
+        return False
 
 def detect_hardware() -> Tuple[str, int, float, str, str, float, str, str]:
     # OS Info

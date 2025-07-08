@@ -9,15 +9,17 @@ from typing import Optional
 from solo_server.config import CONFIG_PATH
 from solo_server.config.config_loader import get_server_config
 from solo_server.utils.hardware import detect_hardware
+from solo_server.utils.docker_utils import start_docker_engine
+from solo_server.utils.hardware import is_ollama_natively_installed, check_ollama_service_status
 from solo_server.utils.server_utils import (start_vllm_server, 
                                             start_ollama_server, 
                                             start_llama_cpp_server, 
                                             is_huggingface_repo, 
                                             pull_model_from_huggingface,
-                                            check_ollama_model_exists,
+                                            pull_native_model_from_huggingface,
                                             pull_ollama_model,
+                                            pull_native_ollama_model,
                                             start_ui)
-from solo_server.utils.docker_utils import start_docker_engine
 
 class ServerType(str, Enum):
     OLLAMA = "ollama"
@@ -94,18 +96,36 @@ def serve(
         if server == ServerType.VLLM.value:
             port = vllm_config.get('default_port', 5070)
         elif server == ServerType.OLLAMA.value:
-            port = ollama_config.get('default_port', 5070)
+            # Check if using native Ollama to determine the correct port
+            use_native = False
+            try:
+                if os.path.exists(CONFIG_PATH):
+                    with open(CONFIG_PATH, 'r') as f:
+                        config_data = json.load(f)
+                        use_native = config_data.get('environment', {}).get('ollama_native', False)
+            except:
+                pass
+            
+            # Check if native Ollama is available and running
+            if (use_native or is_ollama_natively_installed()) and check_ollama_service_status():
+                use_native = True
+                port = ollama_config.get('native_port', 11434)  # Use native Ollama port
+            else:
+                port = ollama_config.get('default_port', 5070)  # Use Docker port
         elif server == ServerType.LLAMACPP.value:
             port = llama_cpp_config.get('default_port', 5070)
     
+    # Start the appropriate server
+    typer.echo(f"Starting Solo server...")
+    success = False
+    original_model_name = model
+
     # Check Docker is installed and running for Docker-based servers
-    if server in [ServerType.VLLM.value, ServerType.OLLAMA.value]:
+    if server in [ServerType.VLLM.value]:
         # Check if Docker is installed
-        docker_installed = True
         try:
             subprocess.run(["docker", "--version"], check=True, capture_output=True)
         except FileNotFoundError:
-            docker_installed = False
             typer.echo("❌ Docker is not installed on your system.", err=True)
             typer.echo("Please install Docker Desktop from https://www.docker.com/products/docker-desktop/")
             typer.echo("After installation, run 'solo setup'.")
@@ -125,14 +145,8 @@ def serve(
                 typer.echo("❌ Could not start Docker automatically.", err=True)
                 typer.echo("Please start Docker manually and run 'solo serve' again.")
                 raise typer.Exit(code=1)
-    
-    # Start the appropriate server
-    typer.echo(f"\nStarting Solo server...")
-    success = False
-    original_model_name = model
-    server_pretty_name = server.capitalize()
-    
-    if server == ServerType.VLLM.value:
+            
+        # Start vLLM server
         try:
             success = start_vllm_server(gpu_enabled, cpu_model, gpu_vendor, os_name, port, model)
             # Display container logs command
@@ -141,30 +155,93 @@ def serve(
         except Exception as e:
             typer.echo(f"❌ Failed to start Solo Server: {e}", err=True)
             raise typer.Exit(code=1)
-        
+    
+    # For Ollama, check if we need Docker or can use native installation
     elif server == ServerType.OLLAMA.value:
-        # Start Ollama server
-        if not start_ollama_server(gpu_enabled, gpu_vendor, port):
-            typer.echo("❌ Failed to start Solo Server!", err=True)
-            raise typer.Exit(code=1)
-        
-        # Pull the model if not already available
+        # Check if native Ollama is configured and running
+        use_native = False
         try:
-            # Check if model exists
-            container_name = ollama_config.get('container_name', 'solo-ollama')
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, 'r') as f:
+                    config_data = json.load(f)
+                    use_native = config_data.get('environment', {}).get('ollama_native', False)
+        except:
+            pass
+        
+        # Check if native Ollama is available and running
+        if (use_native or is_ollama_natively_installed()) and check_ollama_service_status():
+            use_native = True
+            # Start native Ollama server
+            if not start_ollama_server(gpu_enabled, gpu_vendor, port):
+                typer.echo("❌ Failed to start Solo Server!", err=True)
+                raise typer.Exit(code=1)
             
-            # Check if this is a HuggingFace model
-            if is_huggingface_repo(model):
-                # Pull from HuggingFace
-                model = pull_model_from_huggingface(container_name, model)
-            else:
-                # Pull or use existing Ollama model
-                model = pull_ollama_model(container_name, model)
-                        
-            success = True
-        except subprocess.CalledProcessError as e:
-            typer.echo(f"❌ Failed to pull model: {e}", err=True)
-            raise typer.Exit(code=1)
+            # Pull the model if not already available
+            try:
+                # Check if this is a HuggingFace model
+                if is_huggingface_repo(model):
+                    # Pull from HuggingFace using native Ollama
+                    model = pull_native_model_from_huggingface(model)
+                else:
+                    # Pull or use existing Ollama model using native Ollama
+                    model = pull_native_ollama_model(model)
+                            
+                success = True
+            except subprocess.CalledProcessError as e:
+                typer.echo(f"❌ Failed to pull model: {e}", err=True)
+                raise typer.Exit(code=1)
+            
+        elif is_ollama_natively_installed():
+            # Native Ollama is installed but not running - fall back to Docker
+            use_native = False
+        
+        if not use_native:
+            # Check if Docker is installed
+            try:
+                subprocess.run(["docker", "--version"], check=True, capture_output=True)
+            except FileNotFoundError:
+                typer.echo("❌ Docker is not installed on your system.", err=True)
+                typer.echo("Please install Docker Desktop from https://www.docker.com/products/docker-desktop/")
+                typer.echo("After installation, run 'solo setup'.")
+                raise typer.Exit(code=1)
+            
+            # Check if Docker is running
+            docker_running = False
+            try:
+                subprocess.run(["docker", "info"], check=True, capture_output=True)
+                docker_running = True
+            except subprocess.CalledProcessError:
+                docker_running = False
+                typer.echo("⚠️  Docker is installed but not running. Trying to start Docker...")
+                docker_running = start_docker_engine(os_name)
+                
+                if not docker_running:
+                    typer.echo("❌ Could not start Docker automatically.", err=True)
+                    typer.echo("Please start Docker manually and run 'solo serve' again.")
+                    raise typer.Exit(code=1)
+            
+            # Start Docker-based Ollama server
+            if not start_ollama_server(gpu_enabled, gpu_vendor, port):
+                typer.echo("❌ Failed to start Solo Server!", err=True)
+                raise typer.Exit(code=1)
+            
+            # Pull the model if not already available
+            try:
+                # Check if model exists
+                container_name = ollama_config.get('container_name', 'solo-ollama')
+                
+                # Check if this is a HuggingFace model
+                if is_huggingface_repo(model):
+                    # Pull from HuggingFace
+                    model = pull_model_from_huggingface(container_name, model)
+                else:
+                    # Pull or use existing Ollama model
+                    model = pull_ollama_model(container_name, model)
+                            
+                success = True
+            except subprocess.CalledProcessError as e:
+                typer.echo(f"❌ Failed to pull model: {e}", err=True)
+                raise typer.Exit(code=1)
             
     elif server == ServerType.LLAMACPP.value:
         # Start llama.cpp server with the specified model
@@ -181,12 +258,19 @@ def serve(
             # For HF models, get the repository name for display
             display_model = original_model_name.split('/')[-1] if '/' in original_model_name else original_model_name
         
+        # Prepare full_model_name for storage
+        full_model_name = original_model_name
+        if is_huggingface_repo(original_model_name):
+            # For HuggingFace repositories, add hf.co/ prefix if not already present
+            if not original_model_name.startswith("hf://") and not original_model_name.startswith("hf.co/"):
+                full_model_name = f"hf.co/{original_model_name}"
+        
         # Save model information to config file
         # Update config with active model information
         config['active_model'] = {
             'server': server,
             'name': display_model,
-            'full_model_name': original_model_name,  # Save the complete model name
+            'full_model_name': full_model_name,  # Save the complete model name with hf.co/ prefix for HF repos
             'port': port,  # Save the server port for the UI to use
             'last_used': datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         }
@@ -209,7 +293,7 @@ def serve(
             json.dump(config, f, indent=4)
         
         # Print server information
-        typer.secho("✅ Solo Server is running", fg=typer.colors.BRIGHT_GREEN, bold=True)
+        typer.echo("✅ Solo Server is running")
         typer.secho(f"Model  - {display_model}", fg=typer.colors.BRIGHT_CYAN, bold=True)
         typer.secho(f"Access Server at - http://localhost:{port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
         
@@ -230,7 +314,7 @@ def serve(
             ui_success = start_ui(server, container_name=container_name)
             
             if ui_success:
-                typer.secho("✅ Solo UI is running", fg=typer.colors.BRIGHT_GREEN, bold=True)
+                typer.echo("✅ Solo UI is running")
                 typer.secho(f"Access UI at - http://localhost:{ui_port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
             else:
                 typer.echo("⚠️ Failed to start UI automatically.")

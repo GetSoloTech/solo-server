@@ -13,6 +13,7 @@ from rich.panel import Panel
 from solo_server.config import CONFIG_PATH
 from solo_server.config.config_loader import get_server_config
 from solo_server.utils.llama_cpp_utils import find_process_by_port
+from solo_server.utils.hardware import is_ollama_natively_installed, check_ollama_service_status
 
 console = Console()
 
@@ -78,6 +79,27 @@ def status():
     
     # Check for running services
     running_services = []
+    
+    # Check for native Ollama first
+    native_ollama_running = False
+    if is_ollama_natively_installed() and check_ollama_service_status():
+        native_ollama_running = True
+        
+        # Get model name from config if available
+        model_name = "Unknown"
+        if config.get('active_model', {}).get('server') == 'ollama':
+            model_name = config.get('active_model', {}).get('name', model_name)
+        
+        # Get native Ollama port from config
+        ollama_config = get_server_config('ollama')
+        native_port = ollama_config.get('native_port', 11434)
+        
+        running_services.append([
+            "Native Ollama",
+            model_name,
+            f"http://localhost:{native_port}",
+            "Running"
+        ])
     
     # Check for Docker
     docker_installed = False
@@ -168,7 +190,7 @@ def status():
     except Exception as e:
         pass
     
-    # Check for vLLM and Ollama in containers
+    # Check for vLLM and Ollama in containers (only if native Ollama is not running)
     for container in containers:
         # vLLM container
         if "solo-vllm" in container['name']:
@@ -199,8 +221,8 @@ def status():
                 "Running"
             ])
         
-        # Ollama container
-        elif "solo-ollama" in container['name']:
+        # Ollama container (only show if native Ollama is not running)
+        elif "solo-ollama" in container['name'] and not native_ollama_running:
             # Extract port from the ports string correctly
             port = "5070"  # Default
             ports_str = container['ports']
@@ -222,7 +244,7 @@ def status():
                 model_name = config.get('active_model', {}).get('name', model_name)
             
             running_services.append([
-                "Ollama",
+                "Docker Ollama",
                 model_name,
                 f"http://localhost:{port}",
                 "Running"
@@ -240,4 +262,4 @@ def status():
             services_table.add_row(*service)
         console.print(services_table)
     else:
-        typer.echo("\n⚠️  No Solo services running.")
+        typer.echo("\n⚠️  No services running.")

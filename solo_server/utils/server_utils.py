@@ -13,6 +13,7 @@ from solo_server.utils.llama_cpp_utils import (is_port_in_use,
                                               find_process_by_port,
                                               preprocess_model_path, 
                                               is_llama_cpp_installed)
+from solo_server.utils.hardware import is_ollama_natively_installed, check_ollama_service_status
 
 def start_ui(server_type: str, container_name: str = None) -> bool:
     """
@@ -51,7 +52,21 @@ def start_ui(server_type: str, container_name: str = None) -> bool:
         server_port = None
         if server_type == 'ollama':
             server_config = get_server_config('ollama')
-            server_port = server_config.get('default_port', 11434)
+            # Check if using native Ollama
+            use_native = False
+            try:
+                if os.path.exists(CONFIG_PATH):
+                    with open(CONFIG_PATH, 'r') as f:
+                        config_data = json.load(f)
+                        use_native = config_data.get('environment', {}).get('ollama_native', False)
+            except:
+                pass
+            
+            # Check if native Ollama is available and running
+            if (use_native or is_ollama_natively_installed()) and check_ollama_service_status():
+                server_port = server_config.get('native_port', 11434)  # Use native Ollama port
+            else:
+                server_port = server_config.get('default_port', 11434)  # Use Docker port
         elif server_type == 'vllm':
             server_config = get_server_config('vllm')
             server_port = server_config.get('default_port', 8000)
@@ -393,9 +408,23 @@ def start_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
     port = port or ollama_config.get('default_port', 11434)
     container_name = ollama_config.get('container_name', 'solo-ollama')
     
-    # Initialize container_exists flag
+    # Check if native Ollama is installed and configured
+    try:
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r') as f:
+                config = json.load(f)
+                use_native = config.get('environment', {}).get('ollama_native', False)
+        else:
+            use_native = False
+    except:
+        use_native = False
+    
+    # If native Ollama is configured, use it
+    if use_native and is_ollama_natively_installed() and check_ollama_service_status():
+        return True  # Native Ollama is already running
+    
+    # Fall back to Docker approach
     container_exists = False
-
     try:
         # Check if container exists (running or stopped)
         container_exists = subprocess.run(
@@ -852,6 +881,293 @@ def pull_model_from_huggingface(container_name: str, model: str) -> str:
     try:
         subprocess.run(
             ["docker", "exec", container_name, "ollama", "pull", hf_model],
+            check=True
+        )
+        typer.echo(f"✅ Successfully pulled model from HuggingFace")
+        return model_name
+    except subprocess.CalledProcessError as e:
+        typer.echo(f"❌ Failed to pull model from HuggingFace: {e}", err=True)
+        raise e
+
+def start_native_ollama_server(port: int = None) -> bool:
+    """
+    Start native Ollama server if not already running.
+    
+    Args:
+        port (int, optional): Port to run the server on
+        
+    Returns:
+        bool: True if successful, False otherwise
+    """
+    # Load Ollama configuration from YAML
+    ollama_config = get_server_config('ollama')
+    timeout_config = get_timeout_config()
+    
+    # Use native port from config if not provided
+    port = port or ollama_config.get('native_port', 11434)
+    
+    try:
+        # Check if Ollama is natively installed
+        if not is_ollama_natively_installed():
+            typer.echo("❌ Native Ollama is not installed.", err=True)
+            return False
+        
+        # Check if Ollama service is already running
+        if check_ollama_service_status():
+            typer.echo("✅ Ollama service is already running.")
+            return True
+        
+        # Check if port is available
+        if is_port_in_use(port):
+            typer.echo(f"❌ Port {port} is already in use, please try a different port", err=True)
+            typer.echo(f"Run 'solo stop' to stop all running servers.")
+            return False
+        
+        # Start Ollama service
+        typer.echo("🚀 Starting native Ollama service...")
+        
+        # Start Ollama in background
+        process = subprocess.Popen(
+            ["ollama", "serve"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            start_new_session=True
+        )
+        
+        # Wait for service to be ready with timeout
+        server_timeout = timeout_config.get('server_start', 30)
+        start_time = time.time()
+        while time.time() - start_time < server_timeout:
+            if check_ollama_service_status():
+                typer.echo("✅ Native Ollama service started successfully.")
+                return True
+            time.sleep(1)
+        
+        typer.echo("❌ Native Ollama service failed to start within timeout", err=True)
+        return False
+        
+    except Exception as e:
+        typer.echo(f"❌ Failed to start native Ollama service: {e}", err=True)
+        return False
+
+def check_native_ollama_model_exists(model: str) -> tuple[bool, str]:
+    """
+    Check if a model exists in native Ollama.
+    
+    Args:
+        model (str): The model name to check
+        
+    Returns:
+        tuple[bool, str]: A tuple containing (exists, model_name)
+            - exists (bool): True if the model exists, False otherwise
+            - model_name (str): The full model name with tag if it exists, otherwise the original model name
+    """
+    try:
+        # Get the list of models from Ollama
+        model_exists = subprocess.run(
+            ["ollama", "list"],
+            capture_output=True,
+            text=True,
+            check=True
+        ).stdout
+        
+        # Check if the model has a tag
+        has_tag = ':' in model
+        if has_tag:
+            # If the model has a tag, check for exact match
+            if model in model_exists:
+                return True, model
+        else:
+            # If the model doesn't have a tag, check for the model with :latest tag
+            model_with_latest = f"{model}:latest"
+            if model_with_latest in model_exists:
+                return True, model_with_latest
+                    
+        # Model not found
+        return False, model
+    except subprocess.CalledProcessError:
+        # Error running the command
+        return False, model
+
+def pull_native_ollama_model(model: str) -> str:
+    """
+    Pull a model using native Ollama.
+    
+    Args:
+        model (str): The model name to pull
+        
+    Returns:
+        str: The model name after pulling (may include tag)
+        
+    Raises:
+        typer.Exit: If the model could not be pulled
+    """
+    # First check if the model exists with a different tag
+    model_exists, existing_model = check_native_ollama_model_exists(model)
+    if model_exists:
+        typer.echo(f"✅ Model {existing_model} already exists")
+        return existing_model
+    
+    # Check if model already has a tag
+    has_tag = ':' in model
+    if has_tag:
+        # If the model has a tag, try to pull that exact model
+        typer.echo(f"📥 Pulling model {model}...")
+        try:
+            # Run the pull command 
+            process = subprocess.Popen(
+                ["ollama", "pull", model],
+                stdout=None,  # Use None to show output in real-time
+                stderr=None,  # Use None to show errors in real-time
+                text=True
+            )
+            # Wait for the process to complete
+            process.wait()
+            
+            if process.returncode != 0:
+                typer.echo(f"❌ Failed to pull model {model}", err=True)
+                raise typer.Exit(code=1)
+                
+            typer.echo(f"✅ Model {model} pulled successfully")
+            # Return the model name with tag
+            return model
+        except subprocess.CalledProcessError as e:
+            typer.echo(f"❌ Failed to pull model {model}: {e}", err=True)
+            raise typer.Exit(code=1)
+    else:
+        # If the model doesn't have a tag, try to pull with :latest tag first
+        model_with_tag = f"{model}:latest"
+        typer.echo(f"📥 Pulling model {model_with_tag}...")
+        try:
+            # Run the pull command 
+            process = subprocess.Popen(
+                ["ollama", "pull", model_with_tag],
+                stdout=None,  # Use None to show output in real-time
+                stderr=None,  # Use None to show errors in real-time
+                text=True
+            )
+            # Wait for the process to complete
+            process.wait()
+            
+            if process.returncode != 0:
+                typer.echo(f"❌ Failed to pull model {model_with_tag}", err=True)
+                # Try without the tag as a fallback
+                typer.echo(f"Trying to pull model {model} without tag...")
+                process = subprocess.Popen(
+                    ["ollama", "pull", model],
+                    stdout=None,  # Use None to show output in real-time
+                    stderr=None,  # Use None to show errors in real-time
+                    text=True
+                )
+                # Wait for the process to complete
+                process.wait()
+                
+                if process.returncode != 0:
+                    typer.echo(f"❌ Failed to pull model {model}", err=True)
+                    raise typer.Exit(code=1)
+                    
+                typer.echo(f"✅ Model {model} pulled successfully")
+                return model
+            else:
+                typer.echo(f"✅ Model {model_with_tag} pulled successfully")
+                # Return the model name with tag
+                return model_with_tag
+        except subprocess.CalledProcessError as e:
+            typer.echo(f"❌ Failed to pull model {model_with_tag}: {e}", err=True)
+            raise typer.Exit(code=1)
+
+def pull_native_model_from_huggingface(model: str) -> str:
+    """
+    Pull a model from HuggingFace using native Ollama.
+    Returns the Ollama model name after pulling.
+    """
+    from solo_server.utils.hf_utils import get_available_models
+    
+    # Format the model string for Ollama's pull command
+    if model.startswith("hf://"):
+        model = model.replace("hf://", "")
+    elif model.startswith("hf.co/"):
+        model = model.replace("hf.co/", "")
+    
+    # Get HuggingFace token from environment variable or config file
+    hf_token = os.getenv('HUGGING_FACE_TOKEN', '')
+    if not hf_token:  # If not in env, try config file
+        if os.path.exists(CONFIG_PATH):
+            with open(CONFIG_PATH, 'r') as f:
+                config = json.load(f)
+                hf_token = config.get('hugging_face', {}).get('token', '')
+    
+    # Check if a specific model file is specified or just the repo
+    if model.count('/') >= 2:  
+        # Specific model file is provided (username/repo/filename.gguf)
+        parts = model.split('/')
+        repo_id = '/'.join(parts[:-1])  # username/repo
+        model_file = parts[-1]  # filename.gguf
+        
+        # Extract quantization format from filename (e.g., Q4_K_M)
+        quant_format = None
+        if ".gguf" in model_file.lower():
+            # Try to extract quantization format like Q4_K_M
+            parts = model_file.lower().split('.')
+            if len(parts) > 1:
+                # Look for Q4_K_M or similar pattern in the filename
+                for part in parts:
+                    if part.startswith('q') and '_' in part:
+                        quant_format = part.upper()
+                        break
+        
+        # Format for Ollama: hf.co/username/repo:QUANT
+        if quant_format:
+            hf_model = f"hf.co/{repo_id}:{quant_format}"
+        else:
+            # If no quantization format found, use the repo ID only
+            hf_model = f"hf.co/{repo_id}"
+        
+        # Use repo name as model name
+        model_name = repo_id.split('/')[-1]
+
+    else:  # Format: username/repo
+        # Only repo is provided, need to select best model file
+        repo_id = model
+        
+        # Get available GGUF models from the repo
+        model_files = get_available_models(repo_id, suffix=".gguf")
+
+        if not model_files:
+            typer.echo(f"❌ No GGUF models found in repository {repo_id}", err=True)
+            raise typer.Exit(code=1)
+        
+        # Select the best model based on quantization
+        best_model = select_best_model_file(model_files)
+        typer.echo(f"Selected model: {best_model}")
+        
+        # Extract quantization format from filename (e.g., Q4_K_M)
+        quant_format = None
+        if ".gguf" in best_model.lower():
+            # Try to extract quantization format like Q4_K_M
+            parts = best_model.lower().split('.')
+            if len(parts) > 1:
+                # Look for Q4_K_M or similar pattern in the filename
+                for part in parts:
+                    if part.startswith('q') and '_' in part:
+                        quant_format = part.upper()
+                        break
+        
+        # Format for Ollama: hf.co/username/repo:QUANT
+        if quant_format:
+            hf_model = f"hf.co/{repo_id}:{quant_format}"
+        else:
+            # If no quantization format found, use the repo ID only
+            hf_model = f"hf.co/{repo_id}"
+        
+        # Use repo name as model name
+        model_name = repo_id.split('/')[-1]
+    
+    typer.echo(f"📥 Pulling model {hf_model} from HuggingFace...")
+    
+    try:
+        subprocess.run(
+            ["ollama", "pull", hf_model],
             check=True
         )
         typer.echo(f"✅ Successfully pulled model from HuggingFace")

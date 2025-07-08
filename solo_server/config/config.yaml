@@ -15,6 +15,7 @@ servers:
   ollama:
     default_model: "llama3.2:1b"
     default_port: 5070
+    native_port: 11434  # Ollama's default port when running natively
     container_name: "solo-ollama"
     images:
       default: "ollama/ollama"
@@ -33,6 +34,10 @@ paths:
   config_dir: "~/.solo_server"
   config_file: "config.json"
   logs_dir: "logs"
+
+# Repositories
+repositories:
+  lerobot: "https://github.com/GetSoloTech/lerobot.git"
 
 # Timeouts
 timeouts:
