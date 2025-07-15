@@ -35,6 +35,7 @@ class ServerType(str, Enum):
     VLLM = "vllm"
     LLAMACPP = "llama.cpp"
     LEROBOT = "lerobot"
+    NVIDIA_GROOT = "nvidia_groot"
 
 def setup():
     """
@@ -433,9 +434,6 @@ def setup():
                 if hasattr(e, 'stderr') and e.stderr:
                     typer.echo(f"Error output: {e.stderr}")
                 return
-        
-        # Package installation successful
-        lerobot_setup_success = True
 
     # Create configuration directory if it doesn't exist
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
@@ -447,16 +445,9 @@ def setup():
     typer.echo(f"\n✅ Configuration saved to {CONFIG_PATH}")
     
     # Provide appropriate completion message based on server type and success
-    if server == ServerType.LEROBOT:
-        if lerobot_setup_success:
-            typer.echo("🎉 LeRobot package and dependencies installed successfully!")
+    if server == ServerType.LEROBOT or server == ServerType.NVIDIA_GROOT:
             typer.echo("📱 Next steps:")
-            typer.echo("   • Run 'solo lerobot' for full setup (motors + calibration + teleoperation)")
-            typer.echo("   • Run 'solo lerobot --calibrate' to configure arms only")
-            typer.echo("   • Run 'solo lerobot --teleop' to start teleoperation (if already calibrated)")
-        else:
-            typer.echo("❌ LeRobot package installation failed.")
-            typer.secho("Please check your internet connection and try 'solo setup' again.", fg=typer.colors.RED)
+            typer.echo("   • Run 'solo robo --help' for robot config (motors + calibration + teleoperation)")
     else:
         typer.echo("🎉 Solo Server setup completed successfully!")
         typer.secho(f"Use 'solo serve -m model_name' to start serving your model.", fg=typer.colors.GREEN)

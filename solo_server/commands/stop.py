@@ -20,7 +20,7 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
     Stops Solo Server services. If a server type is specified (e.g., 'ollama', 'vllm', 'llama.cpp'),
     only that specific service will be stopped. Otherwise, all Solo services will be stopped.
     """
-    typer.echo("🔍 Checking running Solo servers...")
+    typer.echo("🔍 Checking running services...")
     
     # Track what we found and stopped
     found_services = []

@@ -1,27 +1,21 @@
 """
-LeRobot command for Solo Server
-Handles motor setup, calibration, and teleoperation for robotic arms
+LeRobot framework handler for Solo Server
+Handles LeRobot motor setup, calibration, teleoperation, and data recording
 """
 
 import json
 import os
 import typer
-from typing import Optional
 from rich.console import Console
 from rich.prompt import Confirm
 from solo_server.config import CONFIG_PATH
-from solo_server.utils.lerobot_utils import setup_calibration, start_teleoperation, setup_motors_for_arm, setup_motors_and_calibration
+from solo_server.utils.lerobot_utils import calibration, teleoperation, setup_motors_and_calibration, recording_mode
+
 
 console = Console()
 
-def lerobot(
-    calibrate: bool = typer.Option(False, "--calibrate", help="Setup motors and calibrate arms only"),
-    teleop: bool = typer.Option(False, "--teleop", help="Start teleoperation (requires calibrated arms)"),
-):
-    """
-    LeRobot operations: motor setup, calibration, and teleoperation
-    """
-    
+def handle_lerobot(config: dict, calibrate: bool, teleop: bool, record: bool):
+    """Handle LeRobot framework operations"""
     # Check if lerobot is installed
     try:
         import lerobot
@@ -30,28 +24,23 @@ def lerobot(
         typer.echo("Please run 'solo setup' and select LeRobot as your server type first.")
         return
     
-    # Load existing config
-    config = {}
-    if os.path.exists(CONFIG_PATH):
-        try:
-            with open(CONFIG_PATH, 'r') as f:
-                config = json.load(f)
-        except (json.JSONDecodeError, FileNotFoundError):
-            config = {}
-    
-    if teleop:
+    if record:
+        # Recording mode - check for existing calibration and setup recording
+        recording_mode(config)
+    elif teleop:
         # Teleoperation mode - check for existing calibration
-        _handle_teleoperation_mode(config)
+        teleop_mode(config)
     elif calibrate:
         # Calibration mode - setup motors (optional) + calibrate
-        _handle_calibration_mode(config)
+        calibration_mode(config)
     else:
         # Full mode - setup motors + calibrate + teleoperate
-        _handle_full_mode(config)
+        setup_mode(config)
 
-def _handle_teleoperation_mode(config: dict):
-    """Handle solo lerobot --teleop"""
-    typer.echo("🎮 Starting teleoperation mode...")
+def teleop_mode(config: dict):
+    """Handle LeRobot teleoperation mode"""
+
+    typer.echo("🎮 Starting LeRobot teleoperation mode...")
     
     # Check if arms are already calibrated
     lerobot_config = config.get('lerobot', {})
@@ -66,9 +55,12 @@ def _handle_teleoperation_mode(config: dict):
         typer.echo(f"   • Robot type: {robot_type.upper()}")
         typer.echo(f"   • Leader arm: {leader_port}")
         typer.echo(f"   • Follower arm: {follower_port}")
+
+        # Always ask for camera setup during teleoperation
+        camera_config = None  # Force camera setup prompt
         
         # Start teleoperation
-        success = start_teleoperation(leader_port, follower_port, robot_type)
+        success = teleoperation(leader_port, follower_port, robot_type, camera_config)
         if success:
             typer.echo("✅ Teleoperation completed.")
         else:
@@ -76,12 +68,12 @@ def _handle_teleoperation_mode(config: dict):
     else:
         typer.echo("❌ Arms are not properly calibrated.")
         typer.echo("Please run one of the following first:")
-        typer.echo("   • 'solo lerobot --calibrate' - Configure arms only")
-        typer.echo("   • 'solo lerobot' - Full setup (motors + calibration + teleoperation)")
+        typer.echo("   • 'solo robo --type lerobot --calibrate' - Configure arms only")
+        typer.echo("   • 'solo robo --type lerobot' - Full setup (motors + calibration + teleoperation)")
 
-def _handle_calibration_mode(config: dict):
-    """Handle solo lerobot --calibrate"""
-    typer.echo("🔧 Starting calibration mode...")
+def calibration_mode(config: dict):
+    """Handle LeRobot calibration mode"""
+    typer.echo("🔧 Starting LeRobot calibration mode...")
     
     # Ask if user wants to setup motor IDs first
     setup_motors = Confirm.ask("Would you like to setup motor IDs first?", default=True)
@@ -92,7 +84,7 @@ def _handle_calibration_mode(config: dict):
     else:
         # Run calibration only
         typer.echo("\n🔧 Starting arm calibration...")
-        arm_config = setup_calibration()
+        arm_config = calibration()
     
     # Save configuration
     if 'lerobot' not in config:
@@ -124,13 +116,13 @@ def _handle_calibration_mode(config: dict):
                 typer.echo("✅ Motor IDs have been set up for both arms.")
             else:
                 typer.echo("⚠️  Some motor setups may have failed, but calibration completed.")
-        typer.echo("🎮 You can now run 'solo lerobot --teleop' to start teleoperation.")
+        typer.echo("🎮 You can now run 'solo robo --type lerobot --teleop' to start teleoperation.")
     else:
         typer.echo("⚠️  Calibration partially completed.")
-        typer.echo("You can run 'solo lerobot --calibrate' again to retry.")
+        typer.echo("You can run 'solo robo --type lerobot --calibrate' again to retry.")
 
-def _handle_full_mode(config: dict):
-    """Handle solo lerobot (full setup)"""
+def setup_mode(config: dict):
+    """Handle LeRobot full setup mode"""
     typer.echo("🤖 Starting full LeRobot setup...")
     typer.echo("This will run: motor setup → calibration → teleoperation\n")
     
@@ -171,13 +163,14 @@ def _handle_full_mode(config: dict):
         leader_port = arm_config.get('leader_port')
         follower_port = arm_config.get('follower_port')
         
-        success = start_teleoperation(leader_port, follower_port, robot_type)
+        # Get camera config from arm_config
+        camera_config = arm_config.get('cameras', {'enabled': False, 'cameras': []})
+        
+        success = teleoperation(leader_port, follower_port, robot_type, camera_config)
         if success:
             typer.echo("🎉 Full LeRobot setup completed successfully!")
         else:
             typer.echo("⚠️  Setup completed but teleoperation failed.")
     else:
         typer.echo("\n⚠️  Calibration failed. Skipping teleoperation.")
-        typer.echo("You can run 'solo lerobot --calibrate' to retry calibration.")
-
- 
+        typer.echo("You can run 'solo robo --type lerobot --calibrate' to retry calibration.")  
