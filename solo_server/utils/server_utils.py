@@ -760,6 +760,155 @@ def pull_ollama_model(container_name: str, model: str) -> str:
             typer.echo(f"❌ Failed to pull model {model_with_tag}: {e}", err=True)
             raise typer.Exit(code=1)
 
+def start_lerobot_server(gpu_enabled: bool = False, gpu_vendor: str = None, port: int = None, model_path: str = None):
+    """
+    Start a LeRobot server container for robot control policies.
+    
+    This function launches a Docker container with the LeRobot endpoint, providing
+    hardware passthrough for USB devices (robot motors) and cameras. It supports
+    both mock mode (for development) and real hardware control.
+    
+    Args:
+        gpu_enabled (bool): Whether to enable GPU acceleration
+        gpu_vendor (str): GPU vendor ('nvidia', 'amd', 'apple', or None)
+        port (int): Port to expose the API on (default: 5070)
+        model_path (str): HuggingFace model ID (e.g., 'lerobot/act_so101')
+        
+    Returns:
+        bool: True if server started successfully, False otherwise
+        
+    Hardware Support:
+        - USB devices: /dev/ttyUSB0 (robot motor controllers)
+        - Cameras: /dev/video0 (robot vision)
+        - GPUs: NVIDIA via --gpus all flag
+        gpu_enabled (bool): Whether to use GPU
+        gpu_vendor (str): GPU vendor (NVIDIA, AMD, Apple Silicon)
+        port (int): Port to run the server on
+        model_path (str): Path to the model (HuggingFace repo or local path)
+    
+    Returns:
+        bool: True if the server started successfully, False otherwise
+    """
+    from solo_server.config.config_loader import get_server_config
+    
+    # Get LeRobot configuration
+    lerobot_config = get_server_config('lerobot')
+    container_name = lerobot_config.get('container_name', 'solo-lerobot')
+    
+    # Use default model if not specified
+    if not model_path:
+        model_path = lerobot_config.get('default_model', 'lerobot/act_so101')
+    
+    # Use default port if not specified
+    if not port:
+        port = lerobot_config.get('default_port', 5070)
+    
+    try:
+        # Check if container already exists
+        container_exists = subprocess.run(
+            ["docker", "ps", "-aq", "-f", f"name={container_name}"], 
+            capture_output=True, 
+            text=True
+        ).stdout.strip()
+        
+        # Stop and remove existing container
+        if container_exists:
+            subprocess.run(["docker", "stop", container_name], check=False, capture_output=True)
+            subprocess.run(["docker", "rm", container_name], check=False, capture_output=True)
+        
+        # Check if port is available
+        if is_port_in_use(port):
+            # Find and kill the process using the port
+            process_info = find_process_by_port(port)
+            if process_info:
+                typer.echo(f"⚠️ Port {port} is already in use by: {process_info}")
+                typer.echo("Please stop the process or use a different port.")
+                return False
+        
+        # Select the appropriate image based on hardware
+        images = lerobot_config.get('images', {})
+        if gpu_enabled and gpu_vendor == "NVIDIA":
+            image = images.get('nvidia', 'getsolo/lerobot:cuda')
+        elif gpu_enabled and gpu_vendor == "AMD":
+            image = images.get('amd', 'getsolo/lerobot:rocm')
+        elif gpu_vendor == "Apple Silicon":
+            image = images.get('apple', 'getsolo/lerobot:arm')
+        else:
+            image = images.get('cpu', 'getsolo/lerobot:cpu')
+        
+        # Build docker run command
+        docker_run_cmd = [
+            "docker", "run", "-d",
+            "--name", container_name,
+            "-p", f"{port}:{port}",
+            "--network", "solo-network",
+            "-e", f"LEROBOT_MODEL={model_path}",
+            "-e", f"PORT={port}",
+        ]
+        
+        # Add GPU support if enabled
+        if gpu_enabled and gpu_vendor == "NVIDIA":
+            docker_run_cmd.extend(["--gpus", "all"])
+        
+        # Add hardware passthrough for robots
+        # USB devices for motor controllers
+        docker_run_cmd.extend(["--device", "/dev/ttyUSB0:/dev/ttyUSB0"])
+        docker_run_cmd.extend(["--device", "/dev/ttyUSB1:/dev/ttyUSB1"])
+        
+        # Video devices for cameras
+        docker_run_cmd.extend(["--device", "/dev/video0:/dev/video0"])
+        docker_run_cmd.extend(["--device", "/dev/video1:/dev/video1"])
+        
+        # Add the image and command
+        docker_run_cmd.append(image)
+        docker_run_cmd.extend(["python", "/opt/lerobot/server.py"])
+        
+        # Check if image exists
+        image_exists = subprocess.run(
+            ["docker", "images", "-q", image],
+            capture_output=True,
+            text=True
+        ).stdout.strip()
+        
+        if not image_exists:
+            typer.echo(f"❌ LeRobot server image not found. Please run 'solo setup' first.", err=True)
+            return False
+        
+        # Start the container
+        subprocess.run(docker_run_cmd, check=True, capture_output=True)
+        
+        # Wait for server to start
+        typer.echo("⏳ Waiting for LeRobot server to start...")
+        time.sleep(5)
+        
+        # Check if container is running
+        container_running = subprocess.run(
+            ["docker", "ps", "-q", "-f", f"name={container_name}"],
+            capture_output=True,
+            text=True
+        ).stdout.strip()
+        
+        if container_running:
+            typer.echo(f"✅ LeRobot server started successfully on port {port}")
+            return True
+        else:
+            # Get logs for debugging
+            logs = subprocess.run(
+                ["docker", "logs", container_name],
+                capture_output=True,
+                text=True
+            ).stderr
+            typer.echo(f"❌ LeRobot server failed to start. Logs:\n{logs}", err=True)
+            return False
+            
+    except subprocess.CalledProcessError as e:
+        typer.echo(f"❌ Failed to start LeRobot server: {e}", err=True)
+        return False
+    except Exception as e:
+        typer.echo(f"❌ Unexpected error starting LeRobot server: {e}", err=True)
+        return False
+
+
 def pull_model_from_huggingface(container_name: str, model: str) -> str:
     """
     Pull a model from HuggingFace to Ollama.
