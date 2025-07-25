@@ -8,7 +8,7 @@ from rich.console import Console
 
 console = Console()
 
-def handle_nvidia_groot(config: dict, calibrate: bool, teleop: bool, record: bool):
+def handle_nvidia_groot(config: dict, calibrate: bool, teleop: bool, record: bool, train: bool, inference: bool = False):
     """Handle Nvidia GROOT framework operations"""
     typer.echo("🏗️  Nvidia GROOT support is coming soon!")
     typer.echo("This robotics framework will be supported in a future update.")
@@ -18,10 +18,16 @@ def handle_nvidia_groot(config: dict, calibrate: bool, teleop: bool, record: boo
     # - Handle calibration
     # - Handle teleoperation
     # - Handle recording
+    # - Handle training
+    # - Handle inference
     # - Save configuration
     
-    if record:
+    if train:
+        typer.echo("🎓 GROOT training mode will be available soon.")
+    elif record:
         typer.echo("🎬 GROOT recording mode will be available soon.")
+    elif inference:
+        typer.echo("🔮 GROOT inference mode will be available soon.")
     elif calibrate:
         typer.echo("🔧 GROOT calibration mode will be available soon.")
     elif teleop:

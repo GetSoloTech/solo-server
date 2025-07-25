@@ -24,7 +24,7 @@ def robo(
     inference: bool = typer.Option(False, "--inference", help="Run inference on a pre-trained model"),
 ):
     """
-    Robotics operations: motor setup, calibration, teleoperation, and data recording
+    Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference
     """
     # Load existing config
     config = {}
@@ -37,8 +37,8 @@ def robo(
     
     # Route to appropriate handler based on type
     if type == RoboticsType.LEROBOT:
-        lerobot.handle_lerobot(config, calibrate, teleop, record)
+        lerobot.handle_lerobot(config, calibrate, teleop, record, train, inference)
     elif type == RoboticsType.NVIDIA_GROOT:
-        nvidia_groot.handle_nvidia_groot(config, calibrate, teleop, record)
+        nvidia_groot.handle_nvidia_groot(config, calibrate, teleop, record, train, inference)
     else:
         typer.echo(f"❌ Unsupported robotics type: {type}") 
