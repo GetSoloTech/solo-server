@@ -301,15 +301,7 @@ def huggingface_login_flow() -> tuple[bool, str]:
     if is_logged_in:
         typer.echo(f"✅ Already logged in to HuggingFace as: {username}")
         return True, username
-    
-    # Not logged in, prompt for login
-    typer.echo("🔐 You need to log in to HuggingFace to record data.")
-    should_login = Confirm.ask("Would you like to log in now?", default=True)
-    
-    if not should_login:
-        typer.echo("❌ HuggingFace login required for data recording.")
-        return False, ""
-    
+
     try:
         # Run huggingface-cli login
         typer.echo("Please enter your HuggingFace token when prompted.")
@@ -659,11 +651,6 @@ def training_mode(config: dict):
     """Handle LeRobot training mode"""
     typer.echo("🎓 Starting LeRobot training mode...")
     
-    typer.echo("💡 Popular dataset options:")
-    typer.echo("   • lerobot/svla_so101_pickplace (SmolVLA compatible)")
-    typer.echo("   • lerobot/pusht (ACT/Diffusion compatible)")
-    typer.echo("   • lerobot/aloha_sim_insertion_human (ACT compatible)")
-    typer.echo("   • lerobot/aloha_sim_transfer_cube_human (ACT compatible)")
     dataset_repo_id = Prompt.ask("Enter dataset repository ID", default="lerobot/svla_so101_pickplace")
     
     # Check if dataset exists locally
