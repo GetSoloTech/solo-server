@@ -440,7 +440,7 @@ def recording_mode(config: dict):
     push_to_hub = False
 
     # Step 3: Get recording parameters
-    typer.echo("\n⚙️  Step 3: Recording Configuration")
+    typer.echo("\n⚙️  Recording Configuration")
     
     # Get dataset name and handle existing datasets
     dataset_name = Prompt.ask("Enter dataset repository name", default="lerobot-dataset")
