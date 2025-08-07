@@ -268,7 +268,7 @@ def check_huggingface_login() -> tuple[bool, str]:
     try:
         # Check if user is logged in by running huggingface-cli whoami
         result = subprocess.run(
-            ["huggingface-cli", "whoami"], 
+            ["hf", "auth", "whoami"], 
             capture_output=True, 
             text=True, 
             check=False
@@ -306,7 +306,7 @@ def huggingface_login_flow() -> tuple[bool, str]:
         # Run huggingface-cli login
         typer.echo("Please enter your HuggingFace token when prompted.")
         
-        result = subprocess.run(["huggingface-cli", "login"], check=False)
+        result = subprocess.run(["hf", "auth", "login"], check=False)
         
         if result.returncode == 0:
             # Check login status again
@@ -425,26 +425,28 @@ def recording_mode(config: dict):
     
     display_arms_status(robot_type, leader_port, follower_port)
     
-    # Step 1: HuggingFace authentication
-    typer.echo("\n📋 Step 1: HuggingFace Authentication")
-    login_success, hf_username = authenticate_huggingface()
+    # # Step 1: HuggingFace authentication
+    # typer.echo("\n📋 Step 1: HuggingFace Authentication")
+    # login_success, hf_username = authenticate_huggingface()
     
-    if not login_success:
-        typer.echo("❌ Cannot proceed with recording without HuggingFace authentication.")
-        return
+    # if not login_success:
+    #     typer.echo("❌ Cannot proceed with recording without HuggingFace authentication.")
+    #     return
     
-    # Step 2: Ask about pushing to hub
-    typer.echo(f"\n📤 Step 2: Dataset Upload Configuration")
-    typer.echo(f"HuggingFace username: {hf_username}")
-    push_to_hub = Confirm.ask("Would you like to push the recorded data to HuggingFace Hub?", default=True)
-    
+    # # Step 2: Ask about pushing to hub
+    # typer.echo(f"\n📤 Step 2: Dataset Upload Configuration")
+    # typer.echo(f"HuggingFace username: {hf_username}")
+    # push_to_hub = Confirm.ask("Would you like to push the recorded data to HuggingFace Hub?", default=True)
+    push_to_hub = False
+
     # Step 3: Get recording parameters
     typer.echo("\n⚙️  Step 3: Recording Configuration")
     
     # Get dataset name and handle existing datasets
     dataset_name = Prompt.ask("Enter dataset repository name", default="lerobot-dataset")
-    initial_repo_id = f"{hf_username}/{dataset_name}"
+    # initial_repo_id = f"{hf_username}/{dataset_name}"
     
+    initial_repo_id = f"{dataset_name}"
     # Check if dataset exists and handle appropriately
     dataset_repo_id, should_resume = handle_existing_dataset(initial_repo_id)
     
@@ -464,7 +466,7 @@ def recording_mode(config: dict):
     typer.echo(f"   • Task: {task_description}")
     typer.echo(f"   • Episode duration: {episode_time}s")
     typer.echo(f"   • Number of episodes: {num_episodes}")
-    typer.echo(f"   • Push to hub: {push_to_hub}")
+   # typer.echo(f"   • Push to hub: {push_to_hub}")
     typer.echo(f"   • Robot type: {robot_type.upper()}")
     
     # Import lerobot recording components
