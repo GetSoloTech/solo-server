@@ -9,13 +9,16 @@ import time
 import platform
 import subprocess
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, TYPE_CHECKING
 from rich.console import Console
 from rich.prompt import Prompt, Confirm
 import typer
 from solo_server.config import CONFIG_PATH
 
 console = Console()
+
+if TYPE_CHECKING:
+    from lerobot.record import RecordConfig
 
 # Import lerobot modules with error handling
 try:
@@ -261,6 +264,20 @@ def handle_existing_dataset(repo_id: str, root: Optional[str] = None) -> Tuple[s
             typer.echo(f"\nCurrent repository: {repo_id}")
             repo_id = Prompt.ask("Enter a new repository ID", default=repo_id)
 
+def normalize_repo_id(repo_id: str, hf_username: Optional[str] = None) -> str:
+    """
+    Ensure repo_id follows the expected 'owner/name' format used by LeRobot.
+    If no owner namespace is provided, default to:
+      - '{hf_username}/<name>' when a HuggingFace username is known
+      - 'local/<name>' otherwise (purely local namespace)
+    """
+    if "/" in repo_id and len(repo_id.split("/")) == 2:
+        return repo_id
+    name_only = repo_id.split("/")[-1].strip()
+    if hf_username:
+        return f"{hf_username}/{name_only}"
+    return f"local/{name_only}"
+
 def check_huggingface_login() -> tuple[bool, str]:
     """
     Check if user is logged in to HuggingFace and return (is_logged_in, username)
@@ -444,11 +461,12 @@ def recording_mode(config: dict):
     
     # Get dataset name and handle existing datasets
     dataset_name = Prompt.ask("Enter dataset repository name", default="lerobot-dataset")
-    # initial_repo_id = f"{hf_username}/{dataset_name}"
-    
-    initial_repo_id = f"{dataset_name}"
+    # If HF auth is enabled in the future, pass the username here. For now default to "local/" namespace.
+    initial_repo_id = normalize_repo_id(dataset_name, hf_username=None)
     # Check if dataset exists and handle appropriately
     dataset_repo_id, should_resume = handle_existing_dataset(initial_repo_id)
+    # Ensure the returned id still has a namespace (user may have typed name-only)
+    dataset_repo_id = normalize_repo_id(dataset_repo_id, hf_username=None)
     
     # Get task description
     task_description = Prompt.ask("Enter task description (e.g., 'Pick up the red cube and place it in the box')")
