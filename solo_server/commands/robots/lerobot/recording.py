@@ -130,8 +130,6 @@ def recording_mode(config: dict):
         push_to_hub = preconfigured.get('push_to_hub')
         should_resume = preconfigured.get('should_resume')
         
-        typer.echo("✅ Using preconfigured recording settings")
-        
         # Validate that we have the required settings
         if not (leader_port and follower_port and robot_type):
             typer.echo("❌ Preconfigured settings missing required robot configuration")
@@ -145,54 +143,53 @@ def recording_mode(config: dict):
         if not (leader_port and follower_port and leader_calibrated and follower_calibrated):
             display_calibration_error()
             return
-    
+
+        # Step 1: HuggingFace authentication (optional)
+        typer.echo("\n📋 Step 1: HuggingFace Hub Configuration")
+        push_to_hub = Confirm.ask("Would you like to push the recorded data to HuggingFace Hub?", default=False)
+        hf_username = None
+        
+        if push_to_hub:
+            login_success, hf_username = authenticate_huggingface()
+            
+            if not login_success:
+                typer.echo("❌ HuggingFace authentication failed. Continuing in local-only mode.")
+                push_to_hub = False
+        
+        # Step 2: Get recording parameters
+        typer.echo("\n⚙️ Step 2: Recording Configuration")
+        
+        # Get dataset name and handle existing datasets
+        dataset_name = Prompt.ask("Enter dataset repository name", default="lerobot-dataset")
+        # Use HuggingFace username if available, otherwise default to "local/" namespace
+        initial_repo_id = normalize_repo_id(dataset_name, hf_username=hf_username)
+        # Check if dataset exists and handle appropriately
+        dataset_repo_id, should_resume = handle_existing_dataset(initial_repo_id)
+        # Ensure the returned id still has a namespace (user may have typed name-only)
+        dataset_repo_id = normalize_repo_id(dataset_repo_id, hf_username=hf_username)
+        
+        # Get task description
+        task_description = Prompt.ask("Enter task description (e.g., 'Pick up the red cube and place it in the box')")
+        
+        # Get episode time
+        episode_time = float(Prompt.ask("Duration of each recording episode in seconds", default="60"))
+        
+        # Get number of episodes
+        num_episodes = int(Prompt.ask("Total number of episodes to record", default="50"))
+
+        # Setup cameras
+        camera_config = setup_cameras()
+
     display_arms_status(robot_type, leader_port, follower_port)
     
-    # Step 1: HuggingFace authentication (optional)
-    typer.echo("\n📋 Step 1: HuggingFace Hub Configuration")
-    push_to_hub = Confirm.ask("Would you like to push the recorded data to HuggingFace Hub?", default=False)
-    hf_username = None
-    
-    if push_to_hub:
-        login_success, hf_username = authenticate_huggingface()
-        
-        if not login_success:
-            typer.echo("❌ HuggingFace authentication failed. Continuing in local-only mode.")
-            push_to_hub = False
-    
-    # Step 2: Get recording parameters
-    typer.echo("\n⚙️ Step 2: Recording Configuration")
-    
-    # Get dataset name and handle existing datasets
-    dataset_name = Prompt.ask("Enter dataset repository name", default="lerobot-dataset")
-    # Use HuggingFace username if available, otherwise default to "local/" namespace
-    initial_repo_id = normalize_repo_id(dataset_name, hf_username=hf_username)
-    # Check if dataset exists and handle appropriately
-    dataset_repo_id, should_resume = handle_existing_dataset(initial_repo_id)
-    # Ensure the returned id still has a namespace (user may have typed name-only)
-    dataset_repo_id = normalize_repo_id(dataset_repo_id, hf_username=hf_username)
-    
-    # Get task description
-    task_description = Prompt.ask("Enter task description (e.g., 'Pick up the red cube and place it in the box')")
-    
-    # Get episode time
-    episode_time = float(Prompt.ask("Duration of each recording episode in seconds", default="60"))
-    
-    # Get number of episodes
-    num_episodes = int(Prompt.ask("Total number of episodes to record", default="50"))
-
-     # Setup cameras
-    camera_config = setup_cameras()
-    
     # Step 3: Start recording
-    typer.echo("\n🎬 Step 3: Starting Data Recording")
+    typer.echo("\n🎬Starting Data Recording")
     typer.echo("Configuration:")
     typer.echo(f"   • Dataset: {dataset_repo_id}")
     typer.echo(f"   • Task: {task_description}")
     typer.echo(f"   • Episode duration: {episode_time}s")
     typer.echo(f"   • Number of episodes: {num_episodes}")
     typer.echo(f"   • Push to hub: {push_to_hub}")
-    typer.echo(f"   • HuggingFace username: {hf_username}")
     typer.echo(f"   • Robot type: {robot_type.upper()}")
     
     # Import lerobot recording components
