@@ -6,20 +6,17 @@ Handles LeRobot motor setup, calibration, teleoperation, data recording, and tra
 import typer
 from rich.console import Console
 from rich.prompt import Confirm
-from solo_server.utils.lerobot_utils import calibration, teleoperation, setup_motors_and_calibration, recording_mode, training_mode, inference_mode
+from solo_server.commands.robots.lerobot.calibration import calibration, setup_motors_and_calibration
+from solo_server.commands.robots.lerobot.teleoperation import teleoperation
+from solo_server.commands.robots.lerobot.recording import recording_mode, training_mode, inference_mode
 
 
 console = Console()
 
 def handle_lerobot(config: dict, calibrate: bool, teleop: bool, record: bool, train: bool, inference: bool = False):
     """Handle LeRobot framework operations"""
-    # Check if lerobot is installed
-    try:
-        import lerobot
-    except ImportError:
-        typer.echo("❌ LeRobot package not found.")
-        typer.echo("Please run 'solo setup' and select LeRobot as your server type first.")
-        return
+    # LeRobot is now installed by default with solo-server
+    import lerobot
     
     if train:
         # Training mode - train a policy on recorded data
@@ -42,7 +39,8 @@ def handle_lerobot(config: dict, calibrate: bool, teleop: bool, record: bool, tr
 
 def teleop_mode(config: dict):
     """Handle LeRobot teleoperation mode"""
-    from solo_server.utils.lerobot_utils import validate_lerobot_config, display_calibration_error, display_arms_status, teleoperation
+    from solo_server.commands.robots.lerobot.config import validate_lerobot_config
+    from solo_server.commands.robots.lerobot.calibration import display_calibration_error, display_arms_status
 
     typer.echo("🎮 Starting LeRobot teleoperation mode...")
     
@@ -56,7 +54,7 @@ def teleop_mode(config: dict):
         camera_config = None  # Force camera setup prompt
         
         # Start teleoperation
-        success = teleoperation(leader_port, follower_port, robot_type, camera_config)
+        success = teleoperation(leader_port, follower_port, robot_type, camera_config, config)
         if success:
             typer.echo("✅ Teleoperation completed.")
         else:
@@ -73,18 +71,18 @@ def calibration_mode(config: dict):
     
     if setup_motors:
         # Use the complete motor setup and calibration function
-        arm_config = setup_motors_and_calibration()
+        arm_config = setup_motors_and_calibration(config)
     else:
         # Run calibration only
         typer.echo("\n🔧 Starting arm calibration...")
-        arm_config = calibration()
+        arm_config = calibration(config)
     
     # Save configuration using utility function
-    from solo_server.utils.lerobot_utils import save_lerobot_config
+    from solo_server.commands.robots.lerobot.config import save_lerobot_config
     save_lerobot_config(config, arm_config)
     
     # Check calibration success using utility function
-    from solo_server.utils.lerobot_utils import check_calibration_success
+    from solo_server.commands.robots.lerobot.calibration import check_calibration_success
     check_calibration_success(arm_config, setup_motors)
 
 def setup_mode(config: dict):
@@ -94,9 +92,10 @@ def setup_mode(config: dict):
     
     # Step 1 & 2: Setup motors and calibration
     typer.echo("Step 1/3: Setting up motor IDs and calibration...")
-    arm_config = setup_motors_and_calibration()
+    arm_config = setup_motors_and_calibration(config)
     
     # Save configuration using utility function  
+    from solo_server.commands.robots.lerobot.config import save_lerobot_config
     save_lerobot_config(config, arm_config)
     
     # Step 3: Teleoperation (if calibration successful)
@@ -120,7 +119,7 @@ def setup_mode(config: dict):
         # Get camera config from arm_config
         camera_config = arm_config.get('cameras', {'enabled': False, 'cameras': []})
         
-        success = teleoperation(leader_port, follower_port, robot_type, camera_config)
+        success = teleoperation(leader_port, follower_port, robot_type, camera_config, config)
         if success:
             typer.echo("🎉 Full LeRobot setup completed successfully!")
         else:

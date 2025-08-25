@@ -8,7 +8,8 @@ import os
 import typer
 from enum import Enum
 from solo_server.config import CONFIG_PATH
-from solo_server.commands.robots import lerobot, nvidia_groot
+from solo_server.commands.robots import nvidia_groot
+from solo_server.commands.robots.lerobot import lerobot
 
 
 class RoboticsType(str, Enum):
