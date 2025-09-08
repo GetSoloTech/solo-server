@@ -6,14 +6,16 @@ Handles LeRobot motor setup, calibration, teleoperation, data recording, and tra
 import typer
 from rich.console import Console
 from rich.prompt import Confirm
-from solo_server.commands.robots.lerobot.calibration import calibration, setup_motors_and_calibration
+from solo_server.commands.robots.lerobot.calibration import calibration
 from solo_server.commands.robots.lerobot.teleoperation import teleoperation
+from solo_server.commands.robots.lerobot.config import save_lerobot_config
+from solo_server.commands.robots.lerobot.calibration import check_calibration_success
 from solo_server.commands.robots.lerobot.recording import recording_mode, training_mode, inference_mode
 
 
 console = Console()
 
-def handle_lerobot(config: dict, calibrate: bool, teleop: bool, record: bool, train: bool, inference: bool = False):
+def handle_lerobot(config: dict, calibrate: str, motors: str, teleop: bool, record: bool, train: bool, inference: bool = False):
     """Handle LeRobot framework operations"""
     # LeRobot is now installed by default with solo-server
     import lerobot
@@ -30,12 +32,12 @@ def handle_lerobot(config: dict, calibrate: bool, teleop: bool, record: bool, tr
     elif teleop:
         # Teleoperation mode - check for existing calibration
         teleop_mode(config)
-    elif calibrate:
-        # Calibration mode - setup motors (optional) + calibrate
-        calibration_mode(config)
-    else:
-        # Full mode - setup motors + calibrate + teleoperate
-        setup_mode(config)
+    elif motors is not None:
+        # Motor setup mode - setup motor IDs only
+        motor_setup_mode(config, motors)
+    elif calibrate is not None:
+        # Calibration mode - calibrate only 
+        calibration_mode(config, calibrate)
 
 def teleop_mode(config: dict):
     """Handle LeRobot teleoperation mode"""
@@ -62,68 +64,127 @@ def teleop_mode(config: dict):
     else:
         display_calibration_error()
 
-def calibration_mode(config: dict):
+def calibration_mode(config: dict, arm_type: str = None):
     """Handle LeRobot calibration mode"""
     typer.echo("🔧 Starting LeRobot calibration mode...")
     
-    # Ask if user wants to setup motor IDs first
-    setup_motors = Confirm.ask("Would you like to setup motor IDs first?", default=True)
-    
-    if setup_motors:
-        # Use the complete motor setup and calibration function
-        arm_config = setup_motors_and_calibration(config)
-    else:
-        # Run calibration only
-        typer.echo("\n🔧 Starting arm calibration...")
-        arm_config = calibration(config)
-    
-    # Save configuration using utility function
-    from solo_server.commands.robots.lerobot.config import save_lerobot_config
+    arm_config = calibration(config, arm_type)
     save_lerobot_config(config, arm_config)
     
     # Check calibration success using utility function
-    from solo_server.commands.robots.lerobot.calibration import check_calibration_success
-    check_calibration_success(arm_config, setup_motors)
+    check_calibration_success(arm_config, False)  # Motors already set up
 
-def setup_mode(config: dict):
-    """Handle LeRobot full setup mode"""
-    typer.echo("🤖 Starting full LeRobot setup...")
-    typer.echo("This will run: motor setup → calibration → teleoperation\n")
+def motor_setup_mode(config: dict, arm_type: str = None):
+    """Handle LeRobot motor setup mode"""
+    typer.echo("🔧 Starting LeRobot motor setup mode...")
     
-    # Step 1 & 2: Setup motors and calibration
-    typer.echo("Step 1/3: Setting up motor IDs and calibration...")
-    arm_config = setup_motors_and_calibration(config)
-    
-    # Save configuration using utility function  
+    from solo_server.commands.robots.lerobot.calibration import setup_motors_for_arm
+    from solo_server.commands.robots.lerobot.ports import detect_arm_port
     from solo_server.commands.robots.lerobot.config import save_lerobot_config
-    save_lerobot_config(config, arm_config)
+    from rich.prompt import Prompt, Confirm
     
-    # Step 3: Teleoperation (if calibration successful)
-    leader_configured = arm_config.get('leader_port') and arm_config.get('leader_calibrated')
-    follower_configured = arm_config.get('follower_port') and arm_config.get('follower_calibrated')
+    # Gather any existing config and ask once to reuse
+    lerobot_config = config.get('lerobot', {})
+    existing_robot_type = lerobot_config.get('robot_type')
+    existing_leader_port = lerobot_config.get('leader_port')
+    existing_follower_port = lerobot_config.get('follower_port')
     
-    if leader_configured and follower_configured:
-        # Report motor setup status
-        leader_motors = arm_config.get('leader_motors_setup', False)
-        follower_motors = arm_config.get('follower_motors_setup', False)
-        if leader_motors and follower_motors:
-            typer.echo("✅ Motor IDs set up successfully for both arms.")
-        else:
-            typer.echo("⚠️  Some motor setups may have failed, but calibration completed.")
-        
-        typer.echo("\nStep 3/3: Starting teleoperation...")
-        robot_type = arm_config.get('robot_type', 'so100')
-        leader_port = arm_config.get('leader_port')
-        follower_port = arm_config.get('follower_port')
-        
-        # Get camera config from arm_config
-        camera_config = arm_config.get('cameras', {'enabled': False, 'cameras': []})
-        
-        success = teleoperation(leader_port, follower_port, robot_type, camera_config, config)
-        if success:
-            typer.echo("🎉 Full LeRobot setup completed successfully!")
-        else:
-            typer.echo("⚠️  Setup completed but teleoperation failed.")
+    reuse_all = False
+    if existing_robot_type or existing_leader_port or existing_follower_port:
+        typer.echo("\n📦 Found existing configuration:")
+        if existing_robot_type:
+            typer.echo(f"   • Robot type: {existing_robot_type}")
+        if existing_leader_port:
+            typer.echo(f"   • Leader port: {existing_leader_port}")
+        if existing_follower_port:
+            typer.echo(f"   • Follower port: {existing_follower_port}")
+        reuse_all = Confirm.ask("Use these settings?", default=True)
+    
+    if reuse_all and existing_robot_type:
+        robot_type = existing_robot_type
     else:
-        typer.echo("\n⚠️  Calibration failed. Skipping teleoperation.")
-        typer.echo("You can run 'solo robo --type lerobot --calibrate' to retry calibration.")  
+        # Ask for robot type
+        typer.echo("\n🤖 Select your robot type:")
+        typer.echo("1. SO100")
+        typer.echo("2. SO101")
+        robot_choice = int(Prompt.ask("Enter robot type", default="1"))
+        robot_type = "so100" if robot_choice == 1 else "so101"
+    
+    motor_config = {'robot_type': robot_type}
+    
+    # Determine which arms to setup based on arm_type parameter
+    if arm_type == "leader":
+        setup_leader = True
+        setup_follower = False
+    elif arm_type == "follower":
+        setup_leader = False
+        setup_follower = True
+    else:
+        # arm_type is None or empty, setup both
+        setup_leader = True
+        setup_follower = True
+    
+    if setup_leader:
+        # Use consolidated decision for leader port
+        leader_port = existing_leader_port if reuse_all and existing_leader_port else None
+        if not leader_port:
+            leader_port = detect_arm_port("leader")
+        
+        if not leader_port:
+            typer.echo("❌ Failed to detect leader arm. Skipping leader setup.")
+        else:
+            motor_config['leader_port'] = leader_port
+            # Save port to config immediately
+            save_lerobot_config(config, {'leader_port': leader_port})
+            
+            # Setup motor IDs for leader arm
+            leader_motors_setup = setup_motors_for_arm("leader", leader_port, robot_type)
+            motor_config['leader_motors_setup'] = leader_motors_setup
+            
+            if leader_motors_setup:
+                typer.echo("✅ Leader arm motor setup completed!")
+            else:
+                typer.echo("❌ Leader arm motor setup failed.")
+    
+    if setup_follower:
+        # Use consolidated decision for follower port
+        follower_port = existing_follower_port if reuse_all and existing_follower_port else None
+        if not follower_port:
+            follower_port = detect_arm_port("follower")
+        
+        if not follower_port:
+            typer.echo("❌ Failed to detect follower arm. Skipping follower setup.")
+        else:
+            motor_config['follower_port'] = follower_port
+            # Save port to config immediately
+            save_lerobot_config(config, {'follower_port': follower_port})
+            
+            # Setup motor IDs for follower arm
+            follower_motors_setup = setup_motors_for_arm("follower", follower_port, robot_type)
+            motor_config['follower_motors_setup'] = follower_motors_setup
+            
+            if follower_motors_setup:
+                typer.echo("✅ Follower arm motor setup completed!")
+            else:
+                typer.echo("❌ Follower arm motor setup failed.")
+    
+    # Save final motor configuration
+    save_lerobot_config(config, motor_config)
+    
+    # Report final status
+    leader_setup = motor_config.get('leader_motors_setup', False)
+    follower_setup = motor_config.get('follower_motors_setup', False)
+    
+    if (setup_leader and leader_setup) or (setup_follower and follower_setup):
+        typer.echo("\n🎉 Motor setup completed!")
+        if leader_setup and follower_setup:
+            typer.echo("✅ Motor IDs have been set up for both arms.")
+        elif leader_setup:
+            typer.echo("✅ Motor IDs have been set up for the leader arm.")
+        elif follower_setup:
+            typer.echo("✅ Motor IDs have been set up for the follower arm.")
+        
+        typer.echo("🔧 You can now run 'solo robo --type lerobot --calibrate' to calibrate the arms.")
+    else:
+        typer.echo("\n⚠️  Motor setup failed or was skipped.")
+        typer.echo("You can run 'solo robo --type lerobot --motors' again to retry.")

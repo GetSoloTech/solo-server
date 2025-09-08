@@ -6,6 +6,7 @@ Frameworks: LeRobot, Nvidia GROOT
 import json
 import os
 import typer
+import click
 from enum import Enum
 from solo_server.config import CONFIG_PATH
 from solo_server.commands.robots import nvidia_groot
@@ -18,7 +19,16 @@ class RoboticsType(str, Enum):
 
 def robo(
     type: RoboticsType = typer.Option(RoboticsType.LEROBOT, "--type", help="Robotics framework to use"),
-    calibrate: bool = typer.Option(False, "--calibrate", help="Setup motors and calibrate robot arms"),
+    motors: str = typer.Option(
+        None,
+        "--motors",
+        help="Setup motor IDs: 'leader', 'follower', or both",
+    ),
+    calibrate: str = typer.Option(
+        None,
+        "--calibrate",
+        help="Calibrate robot arms: 'leader', 'follower', or both (requires motor setup)",
+    ),
     teleop: bool = typer.Option(False, "--teleop", help="Start teleoperation (requires calibrated arms)"),
     record: bool = typer.Option(False, "--record", help="Record data for training (requires calibrated arms)"),
     train: bool = typer.Option(False, "--train", help="Train a model (requires recorded data)"),
@@ -38,8 +48,8 @@ def robo(
     
     # Route to appropriate handler based on type
     if type == RoboticsType.LEROBOT:
-        lerobot.handle_lerobot(config, calibrate, teleop, record, train, inference)
-    elif type == RoboticsType.NVIDIA_GROOT:
+        lerobot.handle_lerobot(config, calibrate, motors, teleop, record, train, inference)
+    elif type == RoboticsType.GROOT:
         nvidia_groot.handle_nvidia_groot(config, calibrate, teleop, record, train, inference)
     else:
         typer.echo(f"❌ Unsupported robotics type: {type}") 
