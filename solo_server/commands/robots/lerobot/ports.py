@@ -125,3 +125,34 @@ def detect_arm_port(arm_type: str) -> Optional[str]:
             return new_ports[choice - 1]
         else:
             return new_ports[0]
+
+
+def detect_and_retry_ports(leader_port: str, follower_port: str, config: dict = None) -> tuple[str, str]:
+    """
+    Detect new ports if connection fails and update config
+    Returns (new_leader_port, new_follower_port)
+    """
+    typer.echo("🔍 Ports may have changed. Detecting new ports...")
+    
+    # Detect new ports
+    new_leader_port = detect_arm_port("leader")
+    new_follower_port = detect_arm_port("follower")
+    
+    if new_leader_port and new_follower_port:
+        typer.echo(f"✅ Found new ports:")
+        typer.echo(f"   • Leader: {leader_port} → {new_leader_port}")
+        typer.echo(f"   • Follower: {follower_port} → {new_follower_port}")
+        
+        # Update config with new ports if provided
+        if config:
+            from solo_server.commands.robots.lerobot.config import save_lerobot_config
+            save_lerobot_config(config, {
+                'leader_port': new_leader_port,
+                'follower_port': new_follower_port
+            })
+        
+        return new_leader_port, new_follower_port
+    else:
+        typer.echo("❌ Could not detect new ports automatically.")
+        typer.echo("Please check your robot connections and try again.")
+        return leader_port, follower_port

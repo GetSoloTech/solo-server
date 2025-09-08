@@ -8,12 +8,13 @@ from pathlib import Path
 from rich.prompt import Prompt, Confirm
 from typing import Dict
 
-from solo_server.commands.robots.lerobot.config import validate_lerobot_config, create_robot_configs
+from solo_server.commands.robots.lerobot.config import validate_lerobot_config, create_robot_configs, get_known_ids, save_lerobot_config
 from solo_server.commands.robots.lerobot.calibration import display_calibration_error, display_arms_status
 from solo_server.commands.robots.lerobot.auth import authenticate_huggingface
 from solo_server.commands.robots.lerobot.dataset import check_dataset_exists, handle_existing_dataset, normalize_repo_id
 from solo_server.commands.robots.lerobot.cameras import setup_cameras
 from solo_server.commands.robots.lerobot.mode_config import use_preconfigured_args
+from solo_server.commands.robots.lerobot.ports import detect_arm_port, detect_and_retry_ports
 
 
 def unified_record_config(
@@ -33,7 +34,14 @@ def unified_record_config(
     from lerobot.configs.policies import PreTrainedConfig
     
     # Create robot configurations
-    leader_config, follower_config = create_robot_configs(robot_type, leader_port, follower_port, camera_config)
+    leader_config, follower_config = create_robot_configs(
+        robot_type,
+        leader_port,
+        follower_port,
+        camera_config,
+        leader_id=mode_specific_kwargs.get('leader_id'),
+        follower_id=mode_specific_kwargs.get('follower_id'),
+    )
     
     if follower_config is None:
         raise ValueError(f"Failed to create robot configuration for {robot_type}")
@@ -116,12 +124,18 @@ def recording_mode(config: dict):
     # Check for preconfigured recording settings
     preconfigured = use_preconfigured_args(config, 'recording', 'Recording')
     
+    # Initialize variables
+    leader_id = None
+    follower_id = None
+    
     if preconfigured:
         # Use preconfigured settings
         robot_type = preconfigured.get('robot_type')
         leader_port = preconfigured.get('leader_port')
         follower_port = preconfigured.get('follower_port')
         camera_config = preconfigured.get('camera_config')
+        leader_id = preconfigured.get('leader_id')
+        follower_id = preconfigured.get('follower_id')
         dataset_repo_id = preconfigured.get('dataset_repo_id')
         task_description = preconfigured.get('task_description')
         episode_time = preconfigured.get('episode_time')
@@ -143,7 +157,26 @@ def recording_mode(config: dict):
         if not (leader_port and follower_port and leader_calibrated and follower_calibrated):
             display_calibration_error()
             return
+        # Select ids
+        known_leader_ids, known_follower_ids = get_known_ids(config)
+        default_leader_id = config.get('lerobot', {}).get('leader_id') or f"{robot_type}_leader"
+        default_follower_id = config.get('lerobot', {}).get('follower_id') or f"{robot_type}_follower"
+        if known_leader_ids:
+            typer.echo("📇 Known leader ids:")
+            for i, kid in enumerate(known_leader_ids, 1):
+                typer.echo(f"   {i}. {kid}")
+            leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
+        if known_follower_ids:
+            typer.echo("📇 Known follower ids:")
+            for i, kid in enumerate(known_follower_ids, 1):
+                typer.echo(f"   {i}. {kid}")
+            follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
 
+        if not leader_id:
+            leader_id = f"{robot_type}_leader"
+        if not follower_id:
+            follower_id = f"{robot_type}_follower"
+        
         # Step 1: HuggingFace authentication (optional)
         typer.echo("\n📋 Step 1: HuggingFace Hub Configuration")
         push_to_hub = Confirm.ask("Would you like to push the recorded data to HuggingFace Hub?", default=False)
@@ -180,8 +213,6 @@ def recording_mode(config: dict):
         # Setup cameras
         camera_config = setup_cameras()
 
-    display_arms_status(robot_type, leader_port, follower_port)
-    
     # Step 3: Start recording
     typer.echo("\n🎬Starting Data Recording")
     typer.echo("Configuration:")
@@ -191,6 +222,11 @@ def recording_mode(config: dict):
     typer.echo(f"   • Number of episodes: {num_episodes}")
     typer.echo(f"   • Push to hub: {push_to_hub}")
     typer.echo(f"   • Robot type: {robot_type.upper()}")
+    try:
+        typer.echo(f"   • Leader id: {leader_id}")
+        typer.echo(f"   • Follower id: {follower_id}")
+    except NameError:
+        pass
     
     # Import lerobot recording components
     from lerobot.record import record
@@ -204,6 +240,8 @@ def recording_mode(config: dict):
             follower_port=follower_port,
             camera_config=camera_config,
             mode="recording",
+            leader_id=leader_id,
+            follower_id=follower_id,
             dataset_repo_id=dataset_repo_id,
             task_description=task_description,
             episode_time=episode_time,
@@ -225,45 +263,91 @@ def recording_mode(config: dict):
         typer.echo("   • Press 's' to stop recording completely")
         typer.echo("   • Press 'r' to re-record current episode")
         
-        # Start recording
-        dataset = record(record_config)
-        
-        mode_text = "resumed and completed" if should_resume else "completed"
-        typer.echo(f"✅ Recording {mode_text}!")
-        typer.echo(f"📊 Dataset: {dataset_repo_id}")
-        typer.echo(f"📈 Total episodes in dataset: {dataset.num_episodes}")
-        
-        if push_to_hub:
-            typer.echo(f"🚀 Dataset pushed to HuggingFace Hub: https://huggingface.co/datasets/{dataset_repo_id}")
-        
-        # Save recording configuration if not using preconfigured settings
-        if not preconfigured:
-            from .mode_config import save_recording_config
-            recording_args = {
-                'robot_type': robot_type,
-                'leader_port': leader_port,
-                'follower_port': follower_port,
-                'camera_config': camera_config,
-                'dataset_repo_id': dataset_repo_id,
-                'task_description': task_description,
-                'episode_time': episode_time,
-                'num_episodes': num_episodes,
-                'fps': 30,
-                'push_to_hub': push_to_hub,
-                'should_resume': should_resume
-            }
-            save_recording_config(config, recording_args)
+        # Start recording with retry logic
+        max_retries = 1
+        for attempt in range(max_retries + 1):
+            try:
+                dataset = record(record_config)
+                
+                mode_text = "resumed and completed" if should_resume else "completed"
+                typer.echo(f"✅ Recording {mode_text}!")
+                typer.echo(f"📊 Dataset: {dataset_repo_id}")
+                typer.echo(f"📈 Total episodes in dataset: {dataset.num_episodes}")
+                
+                if push_to_hub:
+                    typer.echo(f"🚀 Dataset pushed to HuggingFace Hub: https://huggingface.co/datasets/{dataset_repo_id}")
+                
+                # Save recording configuration if not using preconfigured settings
+                if not preconfigured:
+                    from .mode_config import save_recording_config
+                    recording_args = {
+                        'robot_type': robot_type,
+                        'leader_port': leader_port,
+                        'follower_port': follower_port,
+                        'camera_config': camera_config,
+                        'leader_id': leader_id,
+                        'follower_id': follower_id,
+                        'dataset_repo_id': dataset_repo_id,
+                        'task_description': task_description,
+                        'episode_time': episode_time,
+                        'num_episodes': num_episodes,
+                        'fps': 30,
+                        'push_to_hub': push_to_hub,
+                        'should_resume': should_resume
+                    }
+                    save_recording_config(config, recording_args)
+                break  # Success, exit retry loop
+                
+            except Exception as e:
+                error_msg = str(e)
+                # Check if it's a port connection error
+                if "Could not connect on port" in error_msg or "Make sure you are using the correct port" in error_msg:
+                    if attempt < max_retries:
+                        typer.echo(f"❌ Connection failed: {error_msg}")
+                        typer.echo("🔄 Attempting to detect new ports...")
+                        
+                        # Detect new ports and retry
+                        new_leader_port, new_follower_port = detect_and_retry_ports(leader_port, follower_port, config)
+                        
+                        if new_leader_port != leader_port or new_follower_port != follower_port:
+                            # Update ports and recreate config
+                            leader_port, follower_port = new_leader_port, new_follower_port
+                            record_config = unified_record_config(
+                                robot_type=robot_type,
+                                leader_port=leader_port,
+                                follower_port=follower_port,
+                                camera_config=camera_config,
+                                mode="recording",
+                                leader_id=leader_id,
+                                follower_id=follower_id,
+                                dataset_repo_id=dataset_repo_id,
+                                task_description=task_description,
+                                episode_time=episode_time,
+                                num_episodes=num_episodes,
+                                push_to_hub=push_to_hub,
+                                fps=30,
+                                should_resume=should_resume,
+                            )
+                            typer.echo("🔄 Retrying recording with new ports...")
+                            continue
+                        else:
+                            typer.echo("❌ Could not find new ports. Please check connections.")
+                            return
+                    else:
+                        typer.echo(f"❌ Recording failed after retry: {error_msg}")
+                        return
+                elif "Cannot create a file when that file already exists" in error_msg:
+                    typer.echo(f"❌ Dataset already exists: {dataset_repo_id}")
+                    typer.echo("Please try running the command again.")
+                    return
+                else:
+                    # Non-port related error
+                    typer.echo(f"❌ Recording failed: {error_msg}")
+                    typer.echo("Please check your robot connections and try again.")
+                    return
         
     except KeyboardInterrupt:
         typer.echo("\n🛑 Recording stopped by user.")
-    except Exception as e:
-        error_msg = str(e)
-        if "Cannot create a file when that file already exists" in error_msg:
-            typer.echo(f"❌ Dataset already exists: {dataset_repo_id}")
-            typer.echo("Please try running the command again.")
-        else:
-            typer.echo(f"❌ Recording failed: {e}")
-            typer.echo("Please check your robot connections and try again.")
 
 
 def inference_mode(config: dict):
@@ -387,39 +471,81 @@ def inference_mode(config: dict):
         typer.echo("   • Press 'q' to stop inference")
         typer.echo("   • Press 'Ctrl+C' to force stop")
         
-        # Start inference using unified record function (without dataset)
-        record(record_config)
-        
-        typer.echo("\n✅ Inference completed successfully!")
-        
-        # Save inference configuration if not using preconfigured settings
-        if not preconfigured:
-            from .mode_config import save_inference_config
-            inference_args = {
-                'robot_type': robot_type,
-                'leader_port': leader_port,
-                'follower_port': follower_port,
-                'camera_config': camera_config,
-                'policy_path': policy_path,
-                'task_description': task_description,
-                'inference_time': inference_time,
-                'fps': 30,
-                'use_teleoperation': use_teleoperation
-            }
-            save_inference_config(config, inference_args)
+        # Start inference with retry logic
+        max_retries = 1
+        for attempt in range(max_retries + 1):
+            try:
+                # Start inference using unified record function (without dataset)
+                record(record_config)
+                
+                typer.echo("\n✅ Inference completed successfully!")
+                
+                # Save inference configuration if not using preconfigured settings
+                if not preconfigured:
+                    from .mode_config import save_inference_config
+                    inference_args = {
+                        'robot_type': robot_type,
+                        'leader_port': leader_port,
+                        'follower_port': follower_port,
+                        'camera_config': camera_config,
+                        'policy_path': policy_path,
+                        'task_description': task_description,
+                        'inference_time': inference_time,
+                        'fps': 30,
+                        'use_teleoperation': use_teleoperation
+                    }
+                    save_inference_config(config, inference_args)
+                break  # Success, exit retry loop
+                
+            except Exception as e:
+                error_msg = str(e)
+                # Check if it's a port connection error
+                if "Could not connect on port" in error_msg or "Make sure you are using the correct port" in error_msg:
+                    if attempt < max_retries:
+                        typer.echo(f"❌ Connection failed: {error_msg}")
+                        typer.echo("🔄 Attempting to detect new ports...")
+                        
+                        # Detect new ports and retry
+                        new_leader_port, new_follower_port = detect_and_retry_ports(leader_port, follower_port, config)
+                        
+                        if new_leader_port != leader_port or new_follower_port != follower_port:
+                            # Update ports and recreate config
+                            leader_port, follower_port = new_leader_port, new_follower_port
+                            record_config = unified_record_config(
+                                robot_type=robot_type,
+                                leader_port=leader_port,
+                                follower_port=follower_port,
+                                camera_config=camera_config,
+                                mode="inference",
+                                policy_path=policy_path,
+                                task_description=task_description,
+                                inference_time=inference_time,
+                                fps=30,
+                                use_teleoperation=use_teleoperation,
+                            )
+                            typer.echo("🔄 Retrying inference with new ports...")
+                            continue
+                        else:
+                            typer.echo("❌ Could not find new ports. Please check connections.")
+                            return
+                    else:
+                        typer.echo(f"❌ Inference failed after retry: {error_msg}")
+                        return
+                else:
+                    # Non-port related error
+                    typer.echo(f"❌ Inference failed: {error_msg}")
+                    typer.echo("💡 Troubleshooting tips:")
+                    typer.echo("   • Check if the model path is correct")
+                    typer.echo("   • Ensure you have internet connection for HuggingFace models")
+                    typer.echo("   • Verify HuggingFace authentication is working")
+                    typer.echo("   • For local paths, ensure the file exists and is accessible")
+                    return
         
     except PermissionError as e:
         typer.echo(f"❌ Permission error loading policy: {e}")
         
     except KeyboardInterrupt:
         typer.echo("\n🛑 Inference stopped by user.")
-    except Exception as e:
-        typer.echo(f"❌ Inference failed: {e}")
-        typer.echo("💡 Troubleshooting tips:")
-        typer.echo("   • Check if the model path is correct")
-        typer.echo("   • Ensure you have internet connection for HuggingFace models")
-        typer.echo("   • Verify HuggingFace authentication is working")
-        typer.echo("   • For local paths, ensure the file exists and is accessible")
 
 
 def training_mode(config: dict):

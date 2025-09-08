@@ -5,7 +5,7 @@ Configuration utilities for LeRobot
 import json
 import os
 import typer
-from typing import Optional, Tuple, TYPE_CHECKING, Dict
+from typing import Optional, Tuple, TYPE_CHECKING, Dict, List
 from solo_server.config import CONFIG_PATH
 
 if TYPE_CHECKING:
@@ -50,6 +50,26 @@ def save_lerobot_config(config: dict, arm_config: dict) -> None:
         json.dump(config, f, indent=4)
     
     typer.echo(f"\n✅ Configuration saved to {CONFIG_PATH}")
+
+
+def get_known_ids(config: dict) -> Tuple[List[str], List[str]]:
+    """Return known leader and follower ids from config."""
+    lerobot_config = config.get('lerobot', {})
+    return lerobot_config.get('known_leader_ids', []), lerobot_config.get('known_follower_ids', [])
+
+
+def add_known_id(config: dict, arm_type: str, arm_id: str) -> None:
+    """Persist a discovered or chosen id for leader/follower in the config."""
+    if 'lerobot' not in config:
+        config['lerobot'] = {}
+    key = 'known_leader_ids' if arm_type == 'leader' else 'known_follower_ids'
+    existing: List[str] = config['lerobot'].get(key, [])
+    if arm_id and arm_id not in existing:
+        existing.append(arm_id)
+        config['lerobot'][key] = existing
+        # Save immediately to disk without changing other fields
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump(config, f, indent=4)
 
 
 def get_robot_config_classes(robot_type: str) -> Tuple[Optional[type], Optional[type]]:
@@ -103,7 +123,13 @@ def build_camera_configuration(camera_config: Dict) -> Dict:
     return cameras_dict
 
 
-def create_follower_config(follower_config_class, follower_port: str, robot_type: str, camera_config: Dict = None):
+def create_follower_config(
+    follower_config_class,
+    follower_port: str,
+    robot_type: str,
+    camera_config: Dict = None,
+    follower_id: Optional[str] = None,
+):
     """
     Create follower configuration with optional camera support
     """
@@ -111,16 +137,22 @@ def create_follower_config(follower_config_class, follower_port: str, robot_type
     
     if cameras_dict:
         return follower_config_class(
-            port=follower_port, 
-            id=f"{robot_type}_follower",
+            port=follower_port,
+            id=follower_id or f"{robot_type}_follower",
             cameras=cameras_dict
         )
     else:
-        return follower_config_class(port=follower_port, id=f"{robot_type}_follower")
+        return follower_config_class(port=follower_port, id=follower_id or f"{robot_type}_follower")
 
 
-def create_robot_configs(robot_type: str, leader_port: str, follower_port: str, 
-                        camera_config: Dict = None) -> tuple[Optional[object], Optional[object]]:
+def create_robot_configs(
+    robot_type: str,
+    leader_port: str,
+    follower_port: str,
+    camera_config: Dict = None,
+    leader_id: Optional[str] = None,
+    follower_id: Optional[str] = None,
+) -> tuple[Optional[object], Optional[object]]:
     """
     Create leader and follower configurations for given robot type.
     Returns: (leader_config, follower_config)
@@ -131,7 +163,13 @@ def create_robot_configs(robot_type: str, leader_port: str, follower_port: str,
         typer.echo(f"❌ Unsupported robot type: {robot_type}")
         return None, None
     
-    leader_config = leader_config_class(port=leader_port, id=f"{robot_type}_leader")
-    follower_config = create_follower_config(follower_config_class, follower_port, robot_type, camera_config)
+    leader_config = leader_config_class(port=leader_port, id=leader_id or f"{robot_type}_leader")
+    follower_config = create_follower_config(
+        follower_config_class,
+        follower_port,
+        robot_type,
+        camera_config,
+        follower_id=follower_id,
+    )
     
     return leader_config, follower_config

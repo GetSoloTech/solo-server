@@ -50,8 +50,6 @@ def teleop_mode(config: dict):
     leader_port, follower_port, leader_calibrated, follower_calibrated, robot_type = validate_lerobot_config(config)
     
     if leader_port and follower_port and leader_calibrated and follower_calibrated:
-        display_arms_status(robot_type, leader_port, follower_port)
-
         # Always ask for camera setup during teleoperation
         camera_config = None  # Force camera setup prompt
         

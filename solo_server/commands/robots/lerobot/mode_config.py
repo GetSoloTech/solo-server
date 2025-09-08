@@ -90,14 +90,16 @@ def use_preconfigured_args(config: dict, mode: str, mode_name: str) -> Optional[
     return None
 
 
-def save_teleop_config(config: dict, leader_port: str, follower_port: str, robot_type: str, camera_config: Dict) -> None:
+def save_teleop_config(config: dict, leader_port: str, follower_port: str, robot_type: str, camera_config: Dict, leader_id: str | None = None, follower_id: str | None = None) -> None:
     """Save teleoperation-specific configuration."""
     teleop_config = {
         'leader_port': leader_port,
         'follower_port': follower_port,
         'robot_type': robot_type,
         'camera_config': camera_config,
-        'use_cameras': camera_config.get('enabled', False) if camera_config else False
+        'use_cameras': camera_config.get('enabled', False) if camera_config else False,
+        'leader_id': leader_id,
+        'follower_id': follower_id,
     }
     save_mode_config(config, 'teleop', teleop_config)
 
@@ -109,6 +111,8 @@ def save_recording_config(config: dict, recording_args: Dict) -> None:
         'leader_port': recording_args.get('leader_port'),
         'follower_port': recording_args.get('follower_port'),
         'camera_config': recording_args.get('camera_config'),
+        'leader_id': recording_args.get('leader_id'),
+        'follower_id': recording_args.get('follower_id'),
         'dataset_repo_id': recording_args.get('dataset_repo_id'),
         'task_description': recording_args.get('task_description'),
         'episode_time': recording_args.get('episode_time'),
