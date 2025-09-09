@@ -28,4 +28,9 @@ def get_path_config():
 def get_timeout_config():
     """Get timeout configuration."""
     config = load_config()
-    return config.get('timeouts', {}) 
+    return config.get('timeouts', {})
+
+def get_repository_config():
+    """Get repository configuration."""
+    config = load_config()
+    return config.get('repositories', {}) 

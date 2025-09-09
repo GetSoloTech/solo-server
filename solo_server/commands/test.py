@@ -52,12 +52,32 @@ def test(
     if server_type == ServerType.VLLM.value:
         port = vllm_config.get('default_port', 5070)
     elif server_type == ServerType.OLLAMA.value:
-        port = ollama_config.get('default_port', 5070)
+        # Check if using native Ollama to determine the correct port
+        use_native = False
+        try:
+            if os.path.exists(CONFIG_PATH):
+                with open(CONFIG_PATH, 'r') as f:
+                    config_data = json.load(f)
+                    use_native = config_data.get('environment', {}).get('ollama_native', False)
+        except:
+            pass
+        
+        # Check if native Ollama is available and running
+        from solo_server.utils.hardware import is_ollama_natively_installed, check_ollama_service_status
+        if (use_native or is_ollama_natively_installed()) and check_ollama_service_status():
+            port = ollama_config.get('native_port', 11434)  # Use native Ollama port
+        else:
+            port = ollama_config.get('default_port', 5070)  # Use Docker port
     elif server_type == ServerType.LLAMACPP.value:
         port = llama_cpp_config.get('default_port', 5070)
     else:
         typer.echo(f"❌ Unknown server type: {server_type}", err=True)
         return False
+    
+    # Use port from active model if available (this handles both native and Docker setups)
+    if active_model and 'port' in active_model:
+        port = active_model.get('port')
+        typer.echo(f"Using port from active model: {port}")
     
     # Create base URL
     base_url = f"http://localhost:{port}"

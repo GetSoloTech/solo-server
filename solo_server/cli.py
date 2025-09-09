@@ -2,12 +2,13 @@ import typer
 import requests
 import json
 from solo_server.main import setup
-from solo_server.commands import serve, status, stop, test, download_hf as download, models_list as models
+from solo_server.commands import serve, status, stop, test, download_hf as download, models_list as models, robo
 
 app = typer.Typer()
 
 # Register commands
 app.command()(setup)
+app.command()(robo.robo)
 app.command()(serve.serve)
 app.command()(status.status)
 app.command()(models.list)

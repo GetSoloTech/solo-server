@@ -5,7 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="solo-server",
-    version="0.4.4",
+    version="0.4.5",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
     description="Platform for Hardware Aware Inference.",
@@ -25,6 +25,7 @@ setup(
         "rich",
         "huggingface_hub",
         "pydantic",
+        "lerobot[all]",
     ],
     extras_require={
         "dev": ["pytest", "black", "isort"],

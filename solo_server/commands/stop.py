@@ -6,9 +6,12 @@ from rich.console import Console
 import time
 import os
 import signal
+import json
 
 from solo_server.utils.llama_cpp_utils import find_process_by_port
 from solo_server.config.config_loader import get_server_config
+from solo_server.config import CONFIG_PATH
+from solo_server.utils.hardware import is_ollama_natively_installed, check_ollama_service_status
 
 console = Console()
 
@@ -17,11 +20,28 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
     Stops Solo Server services. If a server type is specified (e.g., 'ollama', 'vllm', 'llama.cpp'),
     only that specific service will be stopped. Otherwise, all Solo services will be stopped.
     """
-    typer.echo("\n🔍 Checking running Solo servers...")
+    typer.echo("🔍 Checking running services...")
     
     # Track what we found and stopped
     found_services = []
     stopped_services = []
+    
+    # Check for native Ollama processes
+    try:
+        if is_ollama_natively_installed() and check_ollama_service_status():
+            # Look for ollama serve processes
+            for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                try:
+                    if proc.info['name'] == 'ollama' or (proc.info['cmdline'] and 'ollama' in proc.info['cmdline'][0]):
+                        # Check if this is a serve process
+                        cmdline = proc.info['cmdline']
+                        if cmdline and len(cmdline) > 1 and 'serve' in cmdline:
+                            found_services.append({"type": "Native Ollama", "id": proc.info['pid'], "process": proc})
+                            break  # Usually only one ollama serve process
+                except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                    continue
+    except Exception as e:
+        typer.echo(f"⚠️  Error checking native Ollama processes: {e}", err=True)
     
     # Check for Docker-based services (ollama, vllm)
     try:
@@ -83,7 +103,7 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
     if found_services:
         typer.echo(f"Found {len(found_services)} running Solo services:")
         for service in found_services:
-            if service["type"] == "llama.cpp":
+            if service["type"] in ["llama.cpp", "Native Ollama"]:
                 typer.echo(f"  • {service['type']} (PID: {service['id']})")
             else:
                 typer.echo(f"  • {service['type']} container: {service['id']}")
@@ -97,7 +117,7 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
             for service in found_services:
                 if (name == "llama.cpp" and service["type"] == "llama.cpp") or \
                    (name == "vllm" and service["type"] == "vLLM") or \
-                   (name == "ollama" and service["type"] == "Ollama") or \
+                   (name == "ollama" and (service["type"] == "Native Ollama" or service["type"] == "Docker Ollama")) or \
                    (name == "ui" and service["type"] == "UI") or \
                    (name in service["id"].lower()):
                     services_to_stop.append(service)
@@ -111,7 +131,7 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
         # Stop services
         for service in services_to_stop:
             try:
-                if service["type"] == "llama.cpp":
+                if service["type"] in ["llama.cpp", "Native Ollama"]:
                     # Stop the process
                     process = service["process"]
                     process.terminate()
@@ -144,4 +164,4 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
         else:
             typer.echo("\n⚠️  No services were stopped due to errors.")
     else:
-        typer.echo("✅ No running Solo Server found.")
+        typer.echo("✅ No running services found.")
