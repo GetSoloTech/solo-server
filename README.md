@@ -19,12 +19,20 @@ Add specialized AI capabilities to any inference server with modular Python comp
 pip install solo-server
 solo setup
 
+# Login to Solo Hub for model access
+solo login --username your-username --password your-password
+
+# Search and pull models from hub
+solo search models --query "llama" --category "language"
+solo pull model llama3.2 --from hub
+
 # Start server with specialized modules
 solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
 
 # Test the system
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{"model": "llama3.2", "messages": [{"role": "user", "content": "Analyze crop health"}]}'
 ```
 
@@ -49,6 +57,57 @@ pip install solo-server[cuda]
 
 # Docker
 docker run -p 8080:8080 solotech/solo-server:latest
+```
+
+## Authentication & Login
+
+Solo Server integrates with Solo Hub for secure model access and management. Authentication is required for accessing premium models and MCP modules.
+
+### Login Methods
+
+```bash
+# Interactive login
+solo login
+
+# Command line login
+solo login --username your-username --password your-password
+
+# Token-based authentication
+solo login --token your-api-token
+
+# Environment variable login
+export SOLO_USERNAME=your-username
+export SOLO_PASSWORD=your-password
+solo login --env
+
+# Logout
+solo logout
+```
+
+### Authentication Configuration
+
+```yaml
+# ~/.solo/auth.yaml
+auth:
+  method: "token"  # username/password, token, or env
+  username: "your-username"
+  token: "your-api-token"
+  hub_url: "https://hub.solotech.ai"
+  auto_refresh: true
+  cache_credentials: true
+```
+
+### API Authentication
+
+```bash
+# Get API token
+solo auth token --generate
+
+# Use token in API calls
+curl http://localhost:8080/v1/chat/completions \
+  -H "Authorization: Bearer YOUR_API_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"model": "llama3.2", "messages": [...]}'
 ```
 
 ## Basic Usage
