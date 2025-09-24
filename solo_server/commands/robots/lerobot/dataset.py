@@ -57,5 +57,7 @@ def normalize_repo_id(repo_id: str, hf_username: Optional[str] = None) -> str:
         return repo_id
     name_only = repo_id.split("/")[-1].strip()
     if hf_username:
-        return f"{hf_username}/{name_only}"
+        owner = hf_username.strip()
+        if owner:
+            return f"{owner}/{name_only}"
     return f"local/{name_only}"

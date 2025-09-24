@@ -2,6 +2,7 @@
 Authentication utilities for LeRobot
 """
 
+import re
 import subprocess
 import typer
 from rich.prompt import Confirm
@@ -21,10 +22,23 @@ def check_huggingface_login() -> tuple[bool, str]:
         )
         
         if result.returncode == 0 and result.stdout.strip():
-            output = result.stdout.strip().split('\n')[0]
+            lines = [line.strip() for line in result.stdout.splitlines() if line.strip()]
+            username = ""
+
+            for line in lines:
+                match = re.search(r"user:\s*(\S+)", line, flags=re.IGNORECASE)
+                if match:
+                    username = match.group(1)
+                    break
+
+            if not username and lines:
+                username = lines[0]
+
+            username = username.strip()
+
             # Check if output contains an actual username (not error messages)
-            if output and not any(phrase in output.lower() for phrase in ['not logged in', 'error', 'failed', 'invalid']):
-                return True, output
+            if username and not any(phrase in username.lower() for phrase in ['not logged in', 'error', 'failed', 'invalid']):
+                return True, username
             else:
                 return False, ""
         else:
