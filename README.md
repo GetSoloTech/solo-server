@@ -17,12 +17,14 @@ Add specialized AI capabilities to any inference server with modular Python comp
 ```bash
 # Install and setup
 pip install solo-server
+
 # Or Install from github repo
 pip install -e .
 
-solo setup
+# Start server with robot modules
+solo robo --help
 
-# Start server with specialized modules
+# Start server with specialized models
 solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
 
 # Test the system
