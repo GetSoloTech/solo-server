@@ -554,6 +554,7 @@ def training_mode(config: dict):
     
     # Check for preconfigured training settings
     preconfigured = use_preconfigured_args(config, 'training', 'Training')
+    training_args = {}
     
     if preconfigured:
         # Use preconfigured settings
@@ -594,6 +595,17 @@ def training_mode(config: dict):
     }
     policy_name = policy_name_map[policy_choice]
     
+    pretrained_policy_path = training_args.get('pretrained_path')
+    if pretrained_policy_path:
+        typer.echo(f"✅ Using preconfigured pretrained checkpoint: {pretrained_policy_path}")
+    elif policy_name == "smolvla":
+        pretrained_policy_path = "lerobot/smolvla_base"
+        typer.echo(" ℹ️ Using default pretrained SmolVLA checkpoint: lerobot/smolvla_base")
+    else:
+        pretrained_policy_path = None
+    training_args['pretrained_path'] = pretrained_policy_path
+    training_args['policy_choice'] = policy_choice
+
     # Step 2: Training configuration
     typer.echo(f"\n⚙️ Step 2: Training Configuration")
     
@@ -715,6 +727,7 @@ def training_mode(config: dict):
     from lerobot.scripts.train import train
     from lerobot.configs.train import TrainPipelineConfig
     from lerobot.configs.default import DatasetConfig, WandBConfig
+    from lerobot.configs.policies import PreTrainedConfig
     from lerobot.policies.diffusion.configuration_diffusion import DiffusionConfig
     from lerobot.policies.act.configuration_act import ACTConfig
     from lerobot.policies.tdmpc.configuration_tdmpc import TDMPCConfig
@@ -728,20 +741,46 @@ def training_mode(config: dict):
         
         # Create dataset config
         dataset_config = DatasetConfig(repo_id=dataset_repo_id)
+
+        # Ensure video decoding backend is available. TorchCodec can be installed without
+        # shipping the required FFmpeg shared libraries which causes runtime failures
+        # inside the dataloader workers. We proactively fall back to PyAV when
+        # TorchCodec cannot be imported.
+        if dataset_config.video_backend == "torchcodec":
+            try:  # pragma: no cover - best effort guard
+                import torchcodec  # noqa: F401
+            except Exception as torchcodec_error:
+                typer.echo(
+                    "⚠️ TorchCodec video backend unavailable ("
+                    + str(torchcodec_error)
+                    + ") — falling back to PyAV."
+                )
+                dataset_config.video_backend = "pyav"
+        typer.echo(f"   • Video backend: {dataset_config.video_backend}")
         
         # Create policy config based on choice
-        if policy_name == "diffusion":
-            policy_config = DiffusionConfig()
-        elif policy_name == "act":
-            policy_config = ACTConfig()
-        elif policy_name == "tdmpc":
-            policy_config = TDMPCConfig()
-        elif policy_name == "smolvla":
-            policy_config = SmolVLAConfig()
-        elif policy_name == "pi0":
-            policy_config = PI0Config()
+        if pretrained_policy_path:
+            typer.echo(f"📥 Loading pretrained policy config from {pretrained_policy_path}")
+            policy_config = PreTrainedConfig.from_pretrained(pretrained_policy_path)
+            policy_config.pretrained_path = pretrained_policy_path
+            if policy_name and policy_config.type != policy_name:
+                typer.echo(
+                    f"⚠️ Loaded checkpoint type '{policy_config.type}' does not match selected policy '{policy_name}'."
+                )
+            policy_name = policy_config.type
         else:
-            raise ValueError(f"Unknown policy type: {policy_name}")
+            if policy_name == "diffusion":
+                policy_config = DiffusionConfig()
+            elif policy_name == "act":
+                policy_config = ACTConfig()
+            elif policy_name == "tdmpc":
+                policy_config = TDMPCConfig()
+            elif policy_name == "smolvla":
+                policy_config = SmolVLAConfig()
+            elif policy_name == "pi0":
+                policy_config = PI0Config()
+            else:
+                raise ValueError(f"Unknown policy type: {policy_name}")
         
         # Set repo_id for hub pushing if configured
         if policy_repo_id:
@@ -763,6 +802,7 @@ def training_mode(config: dict):
             steps=training_steps,
             batch_size=batch_size,
             save_freq=10000,  # Save checkpoints regularly
+            save_checkpoint= True,
             wandb=wandb_config,
             seed=1000,
             resume=resume_training,  # Use the resume flag we determined above
@@ -797,6 +837,7 @@ def training_mode(config: dict):
                 'dataset_repo_id': dataset_repo_id,
                 'output_dir': output_dir,
                 'policy_type': policy_name,
+                'pretrained_policy_path': pretrained_policy_path,
                 'training_args': {
                     'training_steps': training_steps,
                     'batch_size': batch_size,
