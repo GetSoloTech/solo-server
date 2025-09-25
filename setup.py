@@ -5,10 +5,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="solo-server",
-    version="0.4.5",
+    version="0.5.0",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
-    description="Platform for Hardware Aware Inference.",
+    description="Platform for Physiscal AI Inference.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/GetSoloTech/solo-server",
