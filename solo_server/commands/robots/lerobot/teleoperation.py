@@ -103,6 +103,19 @@ def teleoperation(leader_port: str, follower_port: str, robot_type: str = "so100
             display_data=True
         )
         
+        # Save configuration before execution (if not using preconfigured settings)
+        if main_config and not preconfigured:
+            from .mode_config import save_teleop_config
+            save_teleop_config(
+                main_config,
+                leader_port,
+                follower_port,
+                robot_type,
+                camera_config,
+                leader_id,
+                follower_id,
+            )
+        
         typer.echo("🎮 Starting teleoperation... Press Ctrl+C to stop.")
         typer.echo("📋 Move the leader arm to control the follower arm.")
         
@@ -112,18 +125,6 @@ def teleoperation(leader_port: str, follower_port: str, robot_type: str = "so100
             try:
                 teleoperate(teleop_config)
                 
-                # Save teleoperation configuration if not using preconfigured settings
-                if main_config:
-                    from solo_server.commands.robots.lerobot.mode_config import save_teleop_config
-                    save_teleop_config(
-                        main_config,
-                        leader_port,
-                        follower_port,
-                        robot_type,
-                        camera_config,
-                        leader_id,
-                        follower_id,
-                    )
                 return True
                 
             except Exception as e:

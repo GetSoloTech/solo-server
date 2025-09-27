@@ -81,7 +81,6 @@ def use_preconfigured_args(config: dict, mode: str, mode_name: str) -> Optional[
         )
         
         if use_preconfigured:
-            typer.echo(f"✅ Using preconfigured {mode_name} settings")
             return mode_config
         else:
             typer.echo(f"🔄 Running {mode_name} with new settings")

@@ -213,6 +213,26 @@ def recording_mode(config: dict):
         # Setup cameras
         camera_config = setup_cameras()
 
+    # Save configuration before execution (if not using preconfigured settings)
+    if not preconfigured:
+        from .mode_config import save_recording_config
+        recording_args = {
+            'robot_type': robot_type,
+            'leader_port': leader_port,
+            'follower_port': follower_port,
+            'camera_config': camera_config,
+            'leader_id': leader_id,
+            'follower_id': follower_id,
+            'dataset_repo_id': dataset_repo_id,
+            'task_description': task_description,
+            'episode_time': episode_time,
+            'num_episodes': num_episodes,
+            'fps': 30,
+            'push_to_hub': push_to_hub,
+            'should_resume': should_resume
+        }
+        save_recording_config(config, recording_args)
+
     # Step 3: Start recording
     typer.echo("\n🎬Starting Data Recording")
     typer.echo("Configuration:")
@@ -259,9 +279,9 @@ def recording_mode(config: dict):
         
         typer.echo("💡 Tips:")
         typer.echo("   • Move the leader arm to control the follower")
-        typer.echo("   • Press 'q' to stop current episode")
-        typer.echo("   • Press 's' to stop recording completely")
-        typer.echo("   • Press 'r' to re-record current episode")
+        typer.echo("   • Press Right Arrow (→): Early stop the current episode or reset time and move to the next")
+        typer.echo("   • Press Left Arrow (←): Cancel the current episode and re-record it")
+        typer.echo("   • Press Escape (ESC): Immediately stop the session, encode videos, and upload the dataset")
         
         # Start recording with retry logic
         max_retries = 1
@@ -277,25 +297,6 @@ def recording_mode(config: dict):
                 if push_to_hub:
                     typer.echo(f"🚀 Dataset pushed to HuggingFace Hub: https://huggingface.co/datasets/{dataset_repo_id}")
                 
-                # Save recording configuration if not using preconfigured settings
-                if not preconfigured:
-                    from .mode_config import save_recording_config
-                    recording_args = {
-                        'robot_type': robot_type,
-                        'leader_port': leader_port,
-                        'follower_port': follower_port,
-                        'camera_config': camera_config,
-                        'leader_id': leader_id,
-                        'follower_id': follower_id,
-                        'dataset_repo_id': dataset_repo_id,
-                        'task_description': task_description,
-                        'episode_time': episode_time,
-                        'num_episodes': num_episodes,
-                        'fps': 30,
-                        'push_to_hub': push_to_hub,
-                        'should_resume': should_resume
-                    }
-                    save_recording_config(config, recording_args)
                 break  # Success, exit retry loop
                 
             except Exception as e:
@@ -427,6 +428,22 @@ def inference_mode(config: dict):
      # Setup cameras
     camera_config = setup_cameras()
     
+    # Save configuration before execution (if not using preconfigured settings)
+    if not preconfigured:
+        from .mode_config import save_inference_config
+        inference_args = {
+            'robot_type': robot_type,
+            'leader_port': leader_port,
+            'follower_port': follower_port,
+            'camera_config': camera_config,
+            'policy_path': policy_path,
+            'task_description': task_description,
+            'inference_time': inference_time,
+            'fps': 30,
+            'use_teleoperation': use_teleoperation
+        }
+        save_inference_config(config, inference_args)
+    
     # Import lerobot inference components
     from lerobot.record import record
     import os
@@ -468,8 +485,9 @@ def inference_mode(config: dict):
             typer.echo("   • Release the leader arm to let the policy take control")
         else:
             typer.echo("   • The robot will execute the policy autonomously")
-        typer.echo("   • Press 'q' to stop inference")
-        typer.echo("   • Press 'Ctrl+C' to force stop")
+        typer.echo("   • Press Right Arrow (→): Early stop the current episode or reset time and move to the next")
+        typer.echo("   • Press Left Arrow (←): Cancel the current episode and re-record it")
+        typer.echo("   • Press Escape (ESC): Immediately stop the session, encode videos, and upload the dataset")
         
         # Start inference with retry logic
         max_retries = 1
@@ -480,21 +498,6 @@ def inference_mode(config: dict):
                 
                 typer.echo("\n✅ Inference completed successfully!")
                 
-                # Save inference configuration if not using preconfigured settings
-                if not preconfigured:
-                    from .mode_config import save_inference_config
-                    inference_args = {
-                        'robot_type': robot_type,
-                        'leader_port': leader_port,
-                        'follower_port': follower_port,
-                        'camera_config': camera_config,
-                        'policy_path': policy_path,
-                        'task_description': task_description,
-                        'inference_time': inference_time,
-                        'fps': 30,
-                        'use_teleoperation': use_teleoperation
-                    }
-                    save_inference_config(config, inference_args)
                 break  # Success, exit retry loop
                 
             except Exception as e:
@@ -571,30 +574,111 @@ def training_mode(config: dict):
             typer.echo("Please use new settings")
             preconfigured = None
     
-    if not preconfigured:
+    # Get all configuration parameters
+    if preconfigured:
+        # Use preconfigured settings
+        dataset_repo_id = preconfigured.get('dataset_repo_id')
+        output_dir = preconfigured.get('output_dir')
+        policy_name = preconfigured.get('policy_type')
+        training_steps = training_args.get('training_steps', 20000)
+        batch_size = training_args.get('batch_size', 8)
+        push_to_hub = training_args.get('push_to_hub', True)
+        policy_repo_id = training_args.get('policy_repo_id', "")
+        use_wandb = training_args.get('use_wandb', True)
+        wandb_project = training_args.get('wandb_project', "lerobot-training")
+        
+        typer.echo(f"✅ Using preconfigured training parameters:")
+        typer.echo(f"   • Training steps: {training_steps}")
+        typer.echo(f"   • Batch size: {batch_size}")
+        typer.echo(f"   • Output directory: {output_dir}")
+        typer.echo(f"   • Push to hub: {push_to_hub}")
+        typer.echo(f"   • WandB logging: {use_wandb}")
+        if policy_repo_id:
+            typer.echo(f"   • Policy repository: {policy_repo_id}")
+        if use_wandb:
+            typer.echo(f"   • WandB project: {wandb_project}")
+    else:
+        # Get configuration from user input
         dataset_repo_id = Prompt.ask("Enter dataset repository ID", default="lerobot/svla_so101_pickplace")
+        
+        typer.echo("Select policy type:")
+        typer.echo("1. SmolVLA (Vision-Language-Action model)")
+        typer.echo("2. ACT (Action Chunking with Transformers)")
+        typer.echo("3. PI0 (Policy Iteration Zero)")
+        typer.echo("4. TDMPC (Temporal Difference MPC)")
+        typer.echo("5. Diffusion Policy (good for most tasks)")
+        
+        policy_choice = Prompt.ask("Enter policy type", default="1")
+        policy_name_map = {
+            "1": "smolvla",
+            "2": "act", 
+            "3": "pi0",
+            "4": "tdmpc",
+            "5": "diffusion"
+        }
+        policy_name = policy_name_map[policy_choice]
+        
+        # Step 2: Training configuration
+        typer.echo(f"\n⚙️ Step 2: Training Configuration")
+        training_steps = int(Prompt.ask("Number of training steps", default="20000"))
+        batch_size = int(Prompt.ask("Batch size", default="8"))
+        
+        # Output directory with conflict resolution
+        default_output_dir = f"outputs/train/{dataset_repo_id.replace('/', '_')}_{policy_name}"
+        output_dir = Prompt.ask("Output directory for checkpoints", default=default_output_dir)
+        
+        # Step 3: Hub pushing configuration
+        typer.echo(f"\n🚀 Step 3: HuggingFace Hub Configuration")
+        push_to_hub = Confirm.ask("Push trained model to HuggingFace Hub?", default=True)
+        policy_repo_id = ""
+        hf_username = ""
+        
+        if push_to_hub:
+            # HuggingFace authentication for hub pushing
+            typer.echo("\n🔐 HuggingFace Authentication for Model Upload")
+            login_success, hf_username = authenticate_huggingface()
+            
+            if not login_success:
+                typer.echo("❌ Cannot push to hub without HuggingFace authentication.")
+                push_to_hub = False
+            else:
+                # Get policy repository ID
+                policy_name_clean = policy_name.replace("_", "-")
+                dataset_name_clean = dataset_repo_id.split("/")[-1].replace("_", "-")
+                default_policy_repo = f"{hf_username}/{policy_name_clean}-{dataset_name_clean}"
+                
+                policy_repo_id = Prompt.ask("Enter policy repo id", default=default_policy_repo)
+        
+        # Step 4: WandB logging configuration
+        typer.echo(f"\n📊 Step 4: Weights & Biases Configuration")
+        use_wandb = Confirm.ask("Enable Weights & Biases logging?", default=True)
+        wandb_project = ""
+        
+        if use_wandb:
+            # Login to wandb first
+            typer.echo("🔐 Logging into Weights & Biases...")
+            try:
+                result = subprocess.run(["wandb", "login"], check=False)
+                if result.returncode != 0:
+                    typer.echo("❌ WandB login failed. Continuing without WandB logging.")
+                    use_wandb = False
+                else:
+                    typer.echo("✅ Successfully logged into WandB")
+                    wandb_project = Prompt.ask("WandB project name", default="lerobot-training")
+            except FileNotFoundError:
+                typer.echo("❌ wandb CLI not found. Please install with: pip install wandb")
+                typer.echo("Continuing without WandB logging.")
+                use_wandb = False
+            except Exception as e:
+                typer.echo(f"❌ Error during WandB login: {e}")
+                typer.echo("Continuing without WandB logging.")
+                use_wandb = False
     
     # Check if dataset exists locally
     if check_dataset_exists(dataset_repo_id):
         typer.echo(f"✅ Found local dataset: {dataset_repo_id}")
     
-    typer.echo("Select policy type:")
-    typer.echo("1. SmolVLA (Vision-Language-Action model)")
-    typer.echo("2. ACT (Action Chunking with Transformers)")
-    typer.echo("3. PI0 (Policy Iteration Zero)")
-    typer.echo("4. TDMPC (Temporal Difference MPC)")
-    typer.echo("5. Diffusion Policy (good for most tasks)")
-    
-    policy_choice = Prompt.ask("Enter policy type", default="1")
-    policy_name_map = {
-        "1": "smolvla",
-        "2": "act", 
-        "3": "pi0",
-        "4": "tdmpc",
-        "5": "diffusion"
-    }
-    policy_name = policy_name_map[policy_choice]
-    
+    # Handle pretrained policy path
     pretrained_policy_path = training_args.get('pretrained_path')
     if pretrained_policy_path:
         typer.echo(f"✅ Using preconfigured pretrained checkpoint: {pretrained_policy_path}")
@@ -604,18 +688,6 @@ def training_mode(config: dict):
     else:
         pretrained_policy_path = None
     training_args['pretrained_path'] = pretrained_policy_path
-    training_args['policy_choice'] = policy_choice
-
-    # Step 2: Training configuration
-    typer.echo(f"\n⚙️ Step 2: Training Configuration")
-    
-    # Get training parameters
-    training_steps = int(Prompt.ask("Number of training steps", default="20000"))
-    batch_size = int(Prompt.ask("Batch size", default="8"))
-    
-    # Output directory with conflict resolution
-    default_output_dir = f"outputs/train/{dataset_repo_id.replace('/', '_')}_{policy_name}"
-    output_dir = Prompt.ask("Output directory for checkpoints", default=default_output_dir)
     
     # Check if output directory exists and handle conflicts
     output_path = Path(output_dir)
@@ -660,52 +732,6 @@ def training_mode(config: dict):
     else:
         typer.echo(f"✅ Directory ready: {output_dir}")
     
-    # Step 3: Hub pushing configuration
-    typer.echo(f"\n🚀 Step 3: HuggingFace Hub Configuration")
-    push_to_hub = Confirm.ask("Push trained model to HuggingFace Hub?", default=True)
-    policy_repo_id = ""
-    hf_username = ""
-    
-    if push_to_hub:
-        # HuggingFace authentication for hub pushing
-        typer.echo("\n🔐 HuggingFace Authentication for Model Upload")
-        login_success, hf_username = authenticate_huggingface()
-        
-        if not login_success:
-            typer.echo("❌ Cannot push to hub without HuggingFace authentication.")
-            push_to_hub = False
-        else:
-            # Get policy repository ID
-            policy_name_clean = policy_name.replace("_", "-")
-            dataset_name_clean = dataset_repo_id.split("/")[-1].replace("_", "-")
-            default_policy_repo = f"{hf_username}/{policy_name_clean}-{dataset_name_clean}"
-            
-            policy_repo_id = Prompt.ask("Enter policy repo id", default=default_policy_repo)
-    
-    # Step 4: WandB logging configuration
-    typer.echo(f"\n📊 Step 4: Weights & Biases Configuration")
-    use_wandb = Confirm.ask("Enable Weights & Biases logging?", default=True)
-    wandb_project = ""
-    if use_wandb:
-        # Login to wandb first
-        typer.echo("🔐 Logging into Weights & Biases...")
-        try:
-            result = subprocess.run(["wandb", "login"], check=False)
-            if result.returncode != 0:
-                typer.echo("❌ WandB login failed. Continuing without WandB logging.")
-                use_wandb = False
-            else:
-                typer.echo("✅ Successfully logged into WandB")
-                wandb_project = Prompt.ask("WandB project name", default="lerobot-training")
-        except FileNotFoundError:
-            typer.echo("❌ wandb CLI not found. Please install with: pip install wandb")
-            typer.echo("Continuing without WandB logging.")
-            use_wandb = False
-        except Exception as e:
-            typer.echo(f"❌ Error during WandB login: {e}")
-            typer.echo("Continuing without WandB logging.")
-            use_wandb = False
-    
     # Step 5: Start training
     typer.echo(f"\n🎓 Step 5: Starting Training")
     typer.echo("Configuration:")
@@ -722,6 +748,24 @@ def training_mode(config: dict):
     if use_wandb:
         typer.echo(f"   • WandB project: {wandb_project}")
     
+    # Save configuration before execution (if not using preconfigured settings)
+    if not preconfigured:
+        from .mode_config import save_training_config
+        training_args = {
+            'dataset_repo_id': dataset_repo_id,
+            'output_dir': output_dir,
+            'policy_type': policy_name,
+            'pretrained_policy_path': pretrained_policy_path,
+            'training_args': {
+                'training_steps': training_steps,
+                'batch_size': batch_size,
+                'push_to_hub': push_to_hub,
+                'policy_repo_id': policy_repo_id,
+                'use_wandb': use_wandb,
+                'wandb_project': wandb_project
+            }
+        }
+        save_training_config(config, training_args)
 
     # Import lerobot training components
     from lerobot.scripts.train import train
@@ -801,7 +845,7 @@ def training_mode(config: dict):
             output_dir=output_path,
             steps=training_steps,
             batch_size=batch_size,
-            save_freq=10000,  # Save checkpoints regularly
+            save_freq=3000,  # Save checkpoints regularly
             save_checkpoint= True,
             wandb=wandb_config,
             seed=1000,
@@ -830,24 +874,6 @@ def training_mode(config: dict):
         if use_wandb:
             typer.echo(f"📈 Training logs: https://wandb.ai/{wandb_project}")
         
-        # Save training configuration if not using preconfigured settings
-        if not preconfigured:
-            from .mode_config import save_training_config
-            training_args = {
-                'dataset_repo_id': dataset_repo_id,
-                'output_dir': output_dir,
-                'policy_type': policy_name,
-                'pretrained_policy_path': pretrained_policy_path,
-                'training_args': {
-                    'training_steps': training_steps,
-                    'batch_size': batch_size,
-                    'push_to_hub': push_to_hub,
-                    'policy_repo_id': policy_repo_id,
-                    'use_wandb': use_wandb,
-                    'wandb_project': wandb_project
-                }
-            }
-            save_training_config(config, training_args)
         
     except KeyboardInterrupt:
         typer.echo("\n🛑 Training stopped by user.")

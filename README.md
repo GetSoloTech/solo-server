@@ -19,19 +19,39 @@ Add specialized AI capabilities to any inference server with modular Python comp
 pip install solo-server
 
 # Or Install from github repo
+git clone https://github.com/GetSoloTech/solo-server.git
+cd solo-server
 pip install -e .
 
-# Start server with robot modules
-solo robo --help
+# Solo Commands
+solo --help
 
-# Start server with specialized models
+# Start server with SML models
 solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
 
-# Test the system
-curl http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{"model": "llama3.2", "messages": [{"role": "user", "content": "Analyze crop health"}]}'
+# Start lerobot with solo
+solo robo --type lerobot
 ```
+
+
+## Interactive Lerobot With Solo Server
+```bash
+# Motors (both) → Calibrate (both) → Teleop
+solo robo --type lerobot --motors
+solo robo --type lerobot --calibrate both
+solo robo --type lerobot --teleop
+
+# Record a new local dataset with prompts
+solo robo --type lerobot --record
+
+# Train Diffusion Policy on a recorded dataset and push to Hub
+solo robo --type lerobot --train
+
+# Inference with a hub model id (with optional Teleop override)
+solo robo --type lerobot --inference
+```
+
+Find more details here: [Solo Robo Documentation](solo_server/commands/robots/lerobot/README.md) 
 
 ## What is FastMCP?
 
@@ -43,41 +63,6 @@ FastMCP lets you attach specialized AI modules to any inference server. Each mod
 - **50+ Pre-built Modules**: Ready-to-use for common Physical AI tasks
 - **Simple API**: Easy to create custom modules
 
-## Installation
-
-```bash
-# Basic installation
-pip install solo-server
-
-# With GPU support
-pip install solo-server[cuda]
-
-# Docker
-docker run -p 8080:8080 solotech/solo-server:latest
-```
-
-## Basic Usage
-
-```bash
-# Setup with hardware detection
-solo setup
-
-# Start inference server
-solo serve --server ollama --model llama3.2
-
-# Start robot server
-solo robo --help
-
-# Add specialized modules
-solo serve --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
-
-# List available resources
-solo list models
-solo mcp list
-
-# Install new modules
-solo mcp install PredictiveMaintenanceMCP
-```
 
 ## Creating FastMCP Modules
 
