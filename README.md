@@ -37,7 +37,7 @@ solo robo --type lerobot
 ## Interactive Lerobot With Solo Server
 ```bash
 # Motors (both) → Calibrate (both) → Teleop
-solo robo --type lerobot --motors
+solo robo --type lerobot --motors both
 solo robo --type lerobot --calibrate both
 solo robo --type lerobot --teleop
 
