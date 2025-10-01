@@ -33,6 +33,24 @@ solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSigns
 solo robo --type lerobot
 ```
 
+## Developer Setup
+
+```bash
+# Install and setup
+uv install solo-server
+
+# Or Install from github repo
+git clone https://github.com/GetSoloTech/solo-server.git
+cd solo-server
+pip install -e .
+
+# Solo Commands
+solo --help
+
+# Start lerobot with solo
+solo robo --type lerobot
+```
+
 
 ## Interactive Lerobot With Solo Server
 ```bash
