@@ -23,15 +23,8 @@ git clone https://github.com/GetSoloTech/solo-server.git
 cd solo-server
 pip install -e .
 
-# Solo Commands
-solo --help
-
 # Start server with SML models
 solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
-
-# Start lerobot with solo
-solo robo --type lerobot
-```
 
 ## Developer Setup
 
