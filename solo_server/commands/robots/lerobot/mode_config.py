@@ -139,6 +139,8 @@ def save_inference_config(config: dict, inference_args: Dict) -> None:
     inference_config = {
         'robot_type': inference_args.get('robot_type'),
         'leader_port': inference_args.get('leader_port'),
+        'leader_id': inference_args.get('leader_id'),
+        'follower_id': inference_args.get('follower_id'),
         'follower_port': inference_args.get('follower_port'),
         'camera_config': inference_args.get('camera_config'),
         'policy_path': inference_args.get('policy_path'),

@@ -7,6 +7,8 @@ import typer
 from pathlib import Path
 from rich.prompt import Prompt, Confirm
 from typing import Dict
+import os
+import glob
 
 from solo_server.commands.robots.lerobot.config import validate_lerobot_config, create_robot_configs, get_known_ids, save_lerobot_config
 from solo_server.commands.robots.lerobot.calibration import display_calibration_error, display_arms_status
@@ -15,6 +17,40 @@ from solo_server.commands.robots.lerobot.dataset import check_dataset_exists, ha
 from solo_server.commands.robots.lerobot.cameras import setup_cameras
 from solo_server.commands.robots.lerobot.mode_config import use_preconfigured_args
 from solo_server.commands.robots.lerobot.ports import detect_arm_port, detect_and_retry_ports
+
+
+def generate_unique_repo_id(base_repo_id: str) -> str:
+    """
+    Generate a unique repo_id by checking for existing directories and incrementing.
+    Looks for existing directories matching the pattern and finds the next available number.
+    """
+    # Check in the HuggingFace cache directory where LeRobot datasets are stored
+    cache_dir = os.path.expanduser("~/.cache/huggingface/lerobot/local")
+    
+    # Look for existing directories matching the pattern
+    pattern = f"{base_repo_id}_*"
+    existing_dirs = glob.glob(os.path.join(cache_dir, pattern))
+    
+    # Extract numbers from existing directories
+    numbers = []
+    for dir_path in existing_dirs:
+        dir_name = os.path.basename(dir_path)
+        if dir_name.startswith(base_repo_id + "_"):
+            try:
+                # Extract the number after the underscore
+                number_part = dir_name[len(base_repo_id) + 1:]  # Remove base_repo_id + "_"
+                if number_part.isdigit():
+                    numbers.append(int(number_part))
+            except (ValueError, IndexError):
+                continue
+    
+    # Find the next available number
+    if not numbers:
+        next_number = 1
+    else:
+        next_number = max(numbers) + 1
+    
+    return f"{base_repo_id}_{next_number}"
 
 
 def unified_record_config(
@@ -90,21 +126,32 @@ def unified_record_config(
         )
         policy_config.pretrained_path = policy_path
         
+        # Generate unique repo_id for inference
+        policy_path = mode_specific_kwargs.get('policy_path', '')
+        policy_name = policy_path.split('/')[-1] if '/' in policy_path else policy_path
+        
+        # Generate unique repo_id with increment
+        base_repo_id = f"eval_{policy_name}"
+        repo_id = generate_unique_repo_id(base_repo_id)
+        
+        # Log the generated repo_id for user awareness
+        typer.echo(f"📁 repo_id: {repo_id}")
+        
         # Create minimal dataset config for inference (not for recording)
         dataset_config = DatasetRecordConfig(
-            repo_id="inference/session",  # Dummy repo_id 
+            repo_id="local/" + repo_id,
             single_task=mode_specific_kwargs.get('task_description', ''),
             episode_time_s=mode_specific_kwargs.get('inference_time', 60),
             num_episodes=1,  # Single inference session
             push_to_hub=False,  # Never push inference sessions
             fps=mode_specific_kwargs.get('fps', 30),
-            video=False,  # No video for inference
+            video=True,
         )
         
         record_config = RecordConfig(
             robot=follower_config,
             teleop=leader_config if mode_specific_kwargs.get('use_teleoperation', False) else None,
-            dataset=None,  # No dataset for pure inference
+            dataset=dataset_config,  # No dataset for pure inference
             policy=policy_config,
             display_data=True,
             play_sounds=False,  # Quieter for inference
@@ -357,18 +404,28 @@ def inference_mode(config: dict):
     
     # Check for preconfigured inference settings
     preconfigured = use_preconfigured_args(config, 'inference', 'Inference')
+
+    # Initialize variables
+    leader_id = None
+    follower_id = None
     
     if preconfigured:
         # Use preconfigured settings
         robot_type = preconfigured.get('robot_type')
         leader_port = preconfigured.get('leader_port')
+        leader_id = preconfigured.get('leader_id')
         follower_port = preconfigured.get('follower_port')
+        follower_id = preconfigured.get('follower_id')
         camera_config = preconfigured.get('camera_config')
         policy_path = preconfigured.get('policy_path')
         task_description = preconfigured.get('task_description')
         inference_time = preconfigured.get('inference_time')
         fps = preconfigured.get('fps')
         use_teleoperation = preconfigured.get('use_teleoperation')
+        
+        # Get calibration status from config for preconfigured settings
+        leader_calibrated = config.get('lerobot', {}).get('leader_calibrated', False)
+        follower_calibrated = config.get('lerobot', {}).get('follower_calibrated', False)
         
         typer.echo("✅ Using preconfigured inference settings")
         
@@ -387,53 +444,68 @@ def inference_mode(config: dict):
             display_calibration_error()
             return
     
-    typer.echo("✅ Found calibrated follower arm:")
-    typer.echo(f"   • Robot type: {robot_type.upper()}")
-    typer.echo(f"   • Follower arm: {follower_port}")
-    
-    # Check if leader arm is available for teleoperation
-    use_teleoperation = False
-    if leader_port and leader_calibrated:
-        typer.echo(f"✅ Leader arm also available: {leader_port}")
-        use_teleoperation = Confirm.ask("Would you like to teleoperate during inference?", default=False)
-        if use_teleoperation:
-            typer.echo("🎮 Teleoperation enabled - you can override the policy using the leader arm")
-        else:
-            typer.echo("🤖 Pure autonomous inference mode - policy will run without teleoperation")
-    else:
-        typer.echo("ℹ️  No leader arm available - running in pure autonomous mode")
-    
-    # Step 1: HuggingFace authentication
-    typer.echo("\n📋 Step 1: HuggingFace Authentication")
-    login_success, hf_username = authenticate_huggingface()
-    
-    if not login_success:
-        typer.echo("❌ Cannot proceed with inference without HuggingFace authentication.")
-        typer.echo("💡 HuggingFace authentication is required to download pre-trained models.")
-        return
-    
-    # Step 2: Get policy path
-    typer.echo("\n🤖 Step 2: Policy Configuration")
-    policy_path = Prompt.ask("Enter policy path (HuggingFace model ID or local path)")
-    
-    # Step 3: Inference configuration
-    typer.echo("\n⚙️ Step 3: Inference Configuration")
-    
-    # Get inference duration
-    inference_time = float(Prompt.ask("Duration of inference session in seconds", default="60"))
-    
-    # Get task description (optional for some policies)
-    task_description = Prompt.ask("Enter task description", default="")
+        typer.echo("✅ Found calibrated follower arm:")
+        typer.echo(f"   • Robot type: {robot_type.upper()}")
+        typer.echo(f"   • Follower arm: {follower_port}")
+        
+        # Check if leader arm is available for teleoperation
+        use_teleoperation = False
+        known_leader_ids, known_follower_ids = get_known_ids(config)
+        if leader_port and leader_calibrated:
+            use_teleoperation = Confirm.ask("Would you like to teleoperate during inference?", default=False)
+            if use_teleoperation:
+                default_leader_id = config.get('lerobot', {}).get('leader_id') or f"{robot_type}_leader"
+                if known_leader_ids:
+                    typer.echo("📇 Known leader ids:")
+                    for i, kid in enumerate(known_leader_ids, 1):
+                        typer.echo(f"   {i}. {kid}")
+                    leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
+                    typer.echo("🎮 Teleoperation enabled - you can override the policy using the leader arm")
 
-     # Setup cameras
-    camera_config = setup_cameras()
-    
-    # Save configuration before execution (if not using preconfigured settings)
-    if not preconfigured:
+        default_follower_id = config.get('lerobot', {}).get('follower_id') or f"{robot_type}_follower"
+        if known_follower_ids:
+            typer.echo("📇 Known follower ids:")
+            for i, kid in enumerate(known_follower_ids, 1):
+                typer.echo(f"   {i}. {kid}")
+            follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
+
+        if not leader_id:
+            leader_id = f"{robot_type}_leader"
+        if not follower_id:
+            follower_id = f"{robot_type}_follower"
+        
+        # Step 1: HuggingFace authentication
+        typer.echo("\n📋 Step 1: HuggingFace Authentication")
+        login_success, hf_username = authenticate_huggingface()
+        
+        if not login_success:
+            typer.echo("❌ Cannot proceed with inference without HuggingFace authentication.")
+            typer.echo("💡 HuggingFace authentication is required to download pre-trained models.")
+            return
+        
+        # Step 2: Get policy path
+        typer.echo("\n🤖 Step 2: Policy Configuration")
+        policy_path = Prompt.ask("Enter policy path (HuggingFace model ID or local path)")
+        
+        # Step 3: Inference configuration
+        typer.echo("\n⚙️ Step 3: Inference Configuration")
+        
+        # Get inference duration
+        inference_time = float(Prompt.ask("Duration of inference session in seconds", default="60"))
+        
+        # Get task description (optional for some policies)
+        task_description = Prompt.ask("Enter task description", default="")
+
+        # Setup cameras
+        camera_config = setup_cameras()
+        
+        # Save configuration 
         from .mode_config import save_inference_config
         inference_args = {
             'robot_type': robot_type,
             'leader_port': leader_port,
+            'leader_id': leader_id,
+            'follower_id': follower_id,
             'follower_port': follower_port,
             'camera_config': camera_config,
             'policy_path': policy_path,
@@ -466,6 +538,8 @@ def inference_mode(config: dict):
         record_config = unified_record_config(
             robot_type=robot_type,
             leader_port=leader_port,
+            leader_id=leader_id,
+            follower_id=follower_id,
             follower_port=follower_port,
             camera_config=camera_config,
             mode="inference",
