@@ -47,9 +47,8 @@ solo --help
 │ status     Check running models, system status, and configuration.                                                                                                                                                  │
 │ list       List all downloaded models available in HuggingFace cache and Ollama.                                                                                                                                    │
 │ test       Test if the Solo server is running correctly. Performs an inference test to verify server functionality.                                                                                                 │
-│ stop       Stops Solo Server services. If a server type is specified
-             (e.g., 'ollama', 'vllm', 'llama.cpp'), only that specific service will be stopped.
-             Otherwise, all Solo services will be stopped.
+│ stop       Stops Solo Server services. You can specify a server type with 'ollama', 'vllm', or 'llama.cpp'                                                                                                          │
+│            Otherwise, all Solo services will be stopped.                                                                                                                                                            │
 │ download   Downloads a Hugging Face model using the huggingface repo id.                                                                                                                                            │
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
