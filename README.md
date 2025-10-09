@@ -15,18 +15,23 @@ Add specialized AI capabilities to any inference server with modular Python comp
 ## Quick Start
 
 ```bash
-uv venv
-source .venv/bin/activate
+# Create virtual environment, recommended Python version 3.11
+uv venv --python 3.11
+#Mac and Linux Setup
+source .venv/bin/activate #for windows use source .venv/scripts/activate
+# Install solo server
 uv pip install solo-server
+# Solo commands
 solo --help
 
 # Start lerobot with solo
 solo robo --type lerobot
 ```
 
+```bash
 ## Start server with SML models
 solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
-
+```
 
 ## Interactive Lerobot With Solo Server
 ```bash
