@@ -20,34 +20,12 @@ source .venv/bin/activate
 uv pip install solo-server
 solo --help
 
-# Install and setup
-pip install solo-server
-
-# Or Install from github repo
-git clone https://github.com/GetSoloTech/solo-server.git
-cd solo-server
-pip install -e .
-
-# Start server with SML models
-solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
-
-## Developer Setup
-
-```bash
-# Install and setup
-uv install solo-server
-
-# Or Install from github repo
-git clone https://github.com/GetSoloTech/solo-server.git
-cd solo-server
-pip install -e .
-
-# Solo Commands
-solo --help
-
 # Start lerobot with solo
 solo robo --type lerobot
 ```
+
+## Start server with SML models
+solo serve --server ollama --model llama3.2 --mcp CropHealthMCP --mcp VitalSignsMCP
 
 
 ## Interactive Lerobot With Solo Server
@@ -363,12 +341,12 @@ mcp:
 
 ```bash
 # Setup development environment
-git clone https://github.com/GetSoloTech/solo-server.git
-cd solo-server
-python -m venv .venv
-source .venv/bin/activate
-pip install -e ".[dev]"
-pytest
+#git clone https://github.com/GetSoloTech/solo-server.git
+#cd solo-server
+#python -m venv .venv
+#source .venv/bin/activate
+#pip install -e ".[dev]"
+#pytest
 ```
 
 ## Contributing
