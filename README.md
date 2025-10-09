@@ -15,6 +15,11 @@ Add specialized AI capabilities to any inference server with modular Python comp
 ## Quick Start
 
 ```bash
+uv venv
+source .venv/bin/activate
+uv pip install solo-server
+solo --help
+
 # Install and setup
 pip install solo-server
 
