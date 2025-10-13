@@ -40,14 +40,15 @@ solo --help
 <summary><strong>Video: quickstart installation</strong></summary>
 
 <div class="video-container">
-  <video controls width="600">
-    <source
-      src="https://huggingface.co/datasets/DevSoloTech/imgs_docs/resolve/main/DocumentationVideos/quickstart_install.mp4"
-      type="video/mp4"
-    />
-  </video>
+  <iframe 
+    width="600" 
+    height="338" 
+    src="https://www.youtube.com/embed/ci-Hw0rfnN0" 
+    frameborder="0" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+    allowfullscreen
+  ></iframe>
 </div>
-
 </details>
 
 ## Solo Commands:
