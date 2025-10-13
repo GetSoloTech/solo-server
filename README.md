@@ -39,7 +39,7 @@ solo --help
 <details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
-[![Video: Quickstart Installation](media/video_thumbnail.png)](https://youtu.be/ci-Hw0rfnN0)
+[![Video: Quickstart Installationimage.png](media/playable_thumbnail.png)](https://youtu.be/ci-Hw0rfnN0)
 
 </details>
 
