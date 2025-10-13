@@ -39,16 +39,7 @@ solo --help
 <details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
-<div class="video-container">
-  <iframe 
-    width="600" 
-    height="338" 
-    src="https://www.youtube.com/embed/ci-Hw0rfnN0" 
-    frameborder="0" 
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-    allowfullscreen
-  ></iframe>
-</div>
+[![Video: Quickstart Installation](**media/video_thumbnail.png**)](https://youtu.be/ci-Hw0rfnN0)
 </details>
 
 ## Solo Commands:
