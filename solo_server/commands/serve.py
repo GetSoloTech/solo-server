@@ -306,19 +306,19 @@ def serve(
             container_name = None
             
         # Start UI container if enabled
-        if ui:
-            typer.echo("\nStarting Solo UI...")
-            ui_port = 9000  # Default UI port
+#        if ui:
+#            typer.echo("\nStarting Solo UI...")
+#            ui_port = 9000  # Default UI port
             
             # Start the UI container
-            ui_success = start_ui(server, container_name=container_name)
+#            ui_success = start_ui(server, container_name=container_name)
             
-            if ui_success:
-                typer.echo("✅ Solo UI is running")
-                typer.secho(f"Access UI at - http://localhost:{ui_port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
-            else:
-                typer.echo("⚠️ Failed to start UI automatically.")
-                typer.echo(f"You can manually access the server at http://localhost:{port}")
-                typer.echo(f"Or use 'solo test' to test the server.")
-        else:
-            typer.secho(f"UI not started. Use 'solo test' to test the server or '--ui' flag to start the UI.", fg=typer.colors.BRIGHT_MAGENTA)
+#            if ui_success:
+#                typer.echo("✅ Solo UI is running")
+#                typer.secho(f"Access UI at - http://localhost:{ui_port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
+#            else:
+#                typer.echo("⚠️ Failed to start UI automatically.")
+#                typer.echo(f"You can manually access the server at http://localhost:{port}")
+#                typer.echo(f"Or use 'solo test' to test the server.")
+#        else:
+#            typer.secho(f"UI not started. Use 'solo test' to test the server or '--ui' flag to start the UI.", fg=typer.colors.BRIGHT_MAGENTA)
