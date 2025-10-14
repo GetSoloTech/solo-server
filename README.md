@@ -61,9 +61,11 @@ solo --help
 ╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ```
+## Start server with SML models
 
 ```bash
-## Start server with SML models
+
+# Note that you will need Docker for solo serve
 solo setup
 solo serve --server ollama --model llama3.2:1b
 ```
