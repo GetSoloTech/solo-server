@@ -15,8 +15,16 @@ Add specialized AI capabilities to any inference server with modular Python comp
 ## Installation
 
 ```bash
-# Create virtual environment, recommended Python version 3.11
-uv venv --python 3.11
+#If installing uv for the first time,
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or
+brew install uv
+# check that version of uv is 0.9.3 or above
+# Install uv version 0.9.3
+uv self update
+
+# Create virtual environment, recommended Python version 3.12
+uv venv --python 3.12.12
 #Mac and Linux
 source .venv/bin/activate
 #for windows use 
