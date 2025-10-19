@@ -25,7 +25,7 @@ setup(
         "rich",
         "huggingface_hub",
         "pydantic",
-        "lerobot[all]",
+        "lerobot[feetech]"
     ],
     extras_require={
         "dev": ["pytest", "black", "isort"],
