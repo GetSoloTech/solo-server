@@ -25,7 +25,6 @@ setup(
         "rich",
         "huggingface_hub",
         "pydantic",
-        "lerobot",
         "transformers",
         "accelerate",
         "num2words",
