@@ -15,23 +15,21 @@ Add specialized AI capabilities to any inference server with modular Python comp
 ## Installation
 
 ```bash
-#If installing uv for the first time,
-curl -LsSf https://astral.sh/uv/install.sh | sh
-# or
-brew install uv
-# check that version of uv is 0.9.3 or above
-# Install uv version 0.9.3
-uv self update
+# uv package manager installation, skip if uv already exists
+# Mac & Linux
+curl -LsSf https://astral.sh/uv/install.sh | sh  
+# Windows Powershell
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
 
-# Create virtual environment, recommended Python version 3.12
-uv venv --python 3.12.12
-#Mac and Linux
+# Create Python virtual environment, recommended Python version 3.12
+uv venv --python 3.12
+# Mac & Linux
 source .venv/bin/activate
-#for windows use 
+# Windows
 source .venv/scripts/activate
 
-#Choose one of the following installation methods
-#1. Install solo server from PyPi python manager
+#Choose one of the following for solo-server installation
+#1. Install solo server from PyPI python manager
 uv pip install solo-server
 
 #2. Install solo server from source
