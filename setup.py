@@ -26,6 +26,9 @@ setup(
         "huggingface_hub",
         "pydantic",
         "lerobot[all]",
+        "transformers",
+        "accelerate",
+        "num2words",
     ],
     extras_require={
         "dev": ["pytest", "black", "isort"],
