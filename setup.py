@@ -29,6 +29,7 @@ setup(
         "transformers",
         "accelerate",
         "num2words",
+        "lerobot[feetech]"
     ],
     extras_require={
         "dev": ["pytest", "black", "isort"],
