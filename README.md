@@ -42,6 +42,33 @@ solo --help
 
 ```
 
+## Quick Installation for Mac (Automated)
+
+For Mac users, we provide an automated installation script that handles all the setup steps:
+
+```bash
+# Clone the repository
+git clone https://github.com/GetSoloTech/solo-server.git
+cd solo-server
+
+# Make the installation script executable
+chmod +x install_mac.sh
+
+# Run the automated installation
+./install_mac.sh
+```
+
+The script will automatically:
+- Install uv package manager (version 0.9.3)
+- Create a virtual environment with Python 3.12.12
+- Set up environment variables for dependencies
+- Install solo-server in development mode with fallback handling for mujoco dependencies
+
+After installation, activate the virtual environment:
+```bash
+source solo_venv/bin/activate
+```
+
 <details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
