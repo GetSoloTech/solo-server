@@ -47,7 +47,7 @@ solo --help
 <details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
-[![Video: Quickstart Installationimage.png](media/playable_thumbnail.png)](https://youtu.be/ci-Hw0rfnN0)
+[![Video: Mac Quickstart Installationimage.png](media/playable_thumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
 </details>
 
