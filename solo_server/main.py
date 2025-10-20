@@ -43,8 +43,31 @@ def setup():
     """
     typer.echo("💾 Setting up Solo Server...")
     
+    # Step 1: HuggingFace Authentication
+    typer.echo("🔐 Step 1: HuggingFace Authentication")
+    typer.echo("HuggingFace authentication is required for downloading models and datasets.")
+    
+    # Get HuggingFace username
+    hf_username = Prompt.ask("Enter your HuggingFace username")
+    
+    # Get HuggingFace token
+    typer.echo("You can get your token from: https://huggingface.co/settings/tokens")
+    hf_token = typer.prompt("Enter your HuggingFace token", hide_input=True, show_default=False)
+    
+    # Create .env file with HuggingFace credentials
+    env_path = Path(".env")
+    env_content = f"""# HuggingFace Configuration
+HUGGINGFACE_USERNAME={hf_username}
+HUGGINGFACE_TOKEN={hf_token}
+"""
+    
+    with open(env_path, 'w') as f:
+        f.write(env_content)
+    
+    typer.echo(f"✅ HuggingFace credentials saved to {env_path}")
+    
     # Check system info and display hardware info
-    typer.echo("🔍 Checking system information...\n")
+    typer.echo("\n🔍 Step 2: Checking system information...\n")
     cpu_model, cpu_cores, memory_gb, gpu_vendor, gpu_model, gpu_memory, compute_backend, os_name = hardware_info(typer)
     
     # GPU Check and Configuration
@@ -118,7 +141,7 @@ def setup():
         typer.echo("\n⚠️  No GPU detected. Using CPU for inference.")
     
     # Domain Selection
-    typer.echo("\n🏢 Choose the domain that best describes your field:") 
+    typer.echo("\n🏢 Step 3: Choose the domain that best describes your field:") 
     console = Console()
     domain_table = Table()
     domain_table.add_column("ID", style="cyan", justify="center")
@@ -138,7 +161,7 @@ def setup():
         custom_domain = Prompt.ask("Enter your custom domain")
     
     # Server Selection
-    typer.echo("\n🖥️  Select a server type:")
+    typer.echo("\n🖥️  Step 4: Select a server type:")
     server_table = Table()
     server_table.add_column("ID", style="cyan", justify="center")
     server_table.add_column("Server", style="green")
@@ -160,28 +183,7 @@ def setup():
     server_choice = int(Prompt.ask("Enter your preferred server ID", default="1"))
     server = list(ServerType)[server_choice - 1] if 1 <= server_choice <= len(ServerType) else ServerType.OLLAMA
     
-    # Ask for HuggingFace token for vLLM or llama.cpp setup
-    if server in [ServerType.VLLM, ServerType.LLAMACPP]:
-        typer.echo("A HuggingFace token is recommended for downloading gated models.")
-        
-        # Check for existing token in environment variable
-        hf_token = os.getenv('HUGGING_FACE_TOKEN', '')
-        
-        if not hf_token:  # If not in env, try config file
-            if os.path.exists(CONFIG_PATH):
-                try:
-                    with open(CONFIG_PATH, 'r') as f:
-                        config_data = json.load(f)
-                        hf_token = config_data.get('hugging_face', {}).get('token', '')
-                except (json.JSONDecodeError, FileNotFoundError):
-                    pass
-        
-        if not hf_token:
-            if os_name in ["Linux", "Windows"]:
-                typer.echo("Use Ctrl + Shift + V to paste your token.")
-            hf_token = typer.prompt("Please add your HuggingFace token", hide_input=True, default="", show_default=False)
-    else:
-        hf_token = ""
+    # HuggingFace token is already collected in Step 1
     
     # Save configuration
     config = {}
@@ -222,9 +224,11 @@ def setup():
         'type': server.value
     })
     
-    # Save HuggingFace token if provided
-    if hf_token:
-        config['hugging_face'] = {'token': hf_token}
+    # Save HuggingFace credentials
+    config['hugging_face'] = {
+        'username': hf_username,
+        'token': hf_token
+    }
     
     
     # Setup environment based on server type

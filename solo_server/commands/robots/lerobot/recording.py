@@ -9,6 +9,7 @@ from rich.prompt import Prompt, Confirm
 from typing import Dict
 import os
 import glob
+import re
 
 from solo_server.commands.robots.lerobot.config import validate_lerobot_config, create_robot_configs, get_known_ids, save_lerobot_config
 from solo_server.commands.robots.lerobot.calibration import display_calibration_error, display_arms_status
@@ -17,6 +18,60 @@ from solo_server.commands.robots.lerobot.dataset import check_dataset_exists, ha
 from solo_server.commands.robots.lerobot.cameras import setup_cameras
 from solo_server.commands.robots.lerobot.mode_config import use_preconfigured_args
 from solo_server.commands.robots.lerobot.ports import detect_arm_port, detect_and_retry_ports
+
+
+def clean_ansi_codes(text: str) -> str:
+    """
+    Remove ANSI escape codes and clean problematic characters from text to prevent file system errors.
+    """
+    if not text:
+        return text
+    
+    # Remove ANSI escape codes
+    ansi_escape = re.compile(r'\x1b\[[0-9;]*m')
+    cleaned = ansi_escape.sub('', text)
+    
+    # Remove backslashes and other problematic characters for file paths
+    cleaned = cleaned.replace('\\', '')
+    
+    # Remove any remaining control characters
+    cleaned = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', cleaned)
+    
+    # Strip whitespace and ensure it's not empty
+    cleaned = cleaned.strip()
+    
+    # If empty after cleaning, provide a safe default
+    if not cleaned:
+        import time
+        cleaned = f"dataset_{int(time.time())}"
+    
+    return cleaned
+
+
+def clean_repo_id(repo_id: str) -> str:
+    """
+    Clean repository ID to be HuggingFace Hub compatible.
+    """
+    if not repo_id:
+        return repo_id
+    
+    # First clean ANSI codes and basic issues
+    cleaned = clean_ansi_codes(repo_id)
+    
+    # Remove leading slashes
+    if cleaned.startswith('/'):
+        cleaned = cleaned.lstrip('/')
+    
+    # Remove trailing slashes
+    if cleaned.endswith('/'):
+        cleaned = cleaned.rstrip('/')
+    
+    # Ensure it's not empty
+    if not cleaned:
+        import time
+        cleaned = f"repo_{int(time.time())}"
+    
+    return cleaned
 
 
 def generate_unique_repo_id(base_repo_id: str) -> str:
@@ -86,11 +141,39 @@ def unified_record_config(
     if mode == "recording":
         # Recording mode - create full dataset configuration
         repo_id = mode_specific_kwargs.get('dataset_repo_id', 'default/dataset')
+        
+        # Clean ANSI escape codes to prevent file system errors
+        repo_id = clean_ansi_codes(repo_id)
+        
+        # Additional validation: Ensure repo_id doesn't start with '/' or contain problematic characters
+        if repo_id.startswith('/'):
+            typer.echo(f"⚠️  Warning: repo_id starts with '/', removing it")
+            repo_id = repo_id.lstrip('/')
+        
+        # Ensure repo_id has proper format (owner/name or local/name)
+        if '/' not in repo_id:
+            repo_id = f"local/{repo_id}"
+            typer.echo(f"🔧 Fixed repo_id format: '{repo_id}'")
+        
+        # Debug: Log the final cleaned repo_id
+        typer.echo(f"🔍 Debug - Final repo_id: '{repo_id}'")
+        
         push_to_hub = mode_specific_kwargs.get('push_to_hub', False)
         
-        # Force local-only mode for local datasets to prevent HuggingFace API calls
-        if repo_id.startswith('local/'):
-            push_to_hub = False
+        # Only force local-only mode if user explicitly wants local-only
+        # If push_to_hub is True, convert local/ to username/ format
+        if repo_id.startswith('local/') and push_to_hub:
+            # Get username from stored credentials
+            from solo_server.commands.robots.lerobot.auth import get_stored_credentials
+            stored_username, _ = get_stored_credentials()
+            if stored_username:
+                # Convert local/name to username/name
+                dataset_name = repo_id.split('/', 1)[1]  # Get name after local/
+                repo_id = f"{stored_username}/{dataset_name}"
+                typer.echo(f"🔧 Converting to HuggingFace format: {repo_id}")
+            else:
+                typer.echo("⚠️  No HuggingFace username found. Cannot push local dataset to hub.")
+                push_to_hub = False
         
         dataset_config = DatasetRecordConfig(
             repo_id=repo_id,
@@ -184,6 +267,19 @@ def recording_mode(config: dict):
         leader_id = preconfigured.get('leader_id')
         follower_id = preconfigured.get('follower_id')
         dataset_repo_id = preconfigured.get('dataset_repo_id')
+        # Clean ANSI escape codes to prevent file system errors
+        if dataset_repo_id:
+            dataset_repo_id = clean_ansi_codes(dataset_repo_id)
+            
+            # Additional validation: Ensure dataset_repo_id doesn't start with '/' or contain problematic characters
+            if dataset_repo_id.startswith('/'):
+                typer.echo(f"⚠️  Warning: dataset_repo_id starts with '/', removing it")
+                dataset_repo_id = dataset_repo_id.lstrip('/')
+            
+            # Ensure dataset_repo_id has proper format (owner/name or local/name)
+            if '/' not in dataset_repo_id:
+                dataset_repo_id = f"local/{dataset_repo_id}"
+                typer.echo(f"🔧 Fixed dataset_repo_id format: '{dataset_repo_id}'")
         task_description = preconfigured.get('task_description')
         episode_time = preconfigured.get('episode_time')
         num_episodes = preconfigured.get('num_episodes')
@@ -235,6 +331,12 @@ def recording_mode(config: dict):
             if not login_success:
                 typer.echo("❌ HuggingFace authentication failed. Continuing in local-only mode.")
                 push_to_hub = False
+        else:
+            # Even if not pushing to hub, get username for proper repo_id formatting
+            from solo_server.commands.robots.lerobot.auth import get_stored_credentials
+            stored_username, _ = get_stored_credentials()
+            if stored_username:
+                hf_username = stored_username
         
         # Step 2: Get recording parameters
         typer.echo("\n⚙️ Step 2: Recording Configuration")
@@ -247,6 +349,24 @@ def recording_mode(config: dict):
         dataset_repo_id, should_resume = handle_existing_dataset(initial_repo_id)
         # Ensure the returned id still has a namespace (user may have typed name-only)
         dataset_repo_id = normalize_repo_id(dataset_repo_id, hf_username=hf_username)
+        # Clean ANSI escape codes to prevent file system errors
+        dataset_repo_id = clean_ansi_codes(dataset_repo_id)
+        
+        # Additional validation: Ensure dataset_repo_id doesn't start with '/' or contain problematic characters
+        if dataset_repo_id.startswith('/'):
+            typer.echo(f"⚠️  Warning: dataset_repo_id starts with '/', removing it")
+            dataset_repo_id = dataset_repo_id.lstrip('/')
+        
+        # Ensure dataset_repo_id has proper format (owner/name or local/name)
+        if '/' not in dataset_repo_id:
+            if push_to_hub and hf_username:
+                # Use HuggingFace username format for hub uploads
+                dataset_repo_id = f"{hf_username}/{dataset_repo_id}"
+                typer.echo(f"🔧 Fixed dataset_repo_id format: '{dataset_repo_id}'")
+            else:
+                # Use local format for local-only datasets
+                dataset_repo_id = f"local/{dataset_repo_id}"
+                typer.echo(f"🔧 Fixed dataset_repo_id format: '{dataset_repo_id}'")
         
         # Get task description
         task_description = Prompt.ask("Enter task description (e.g., 'Pick up the red cube and place it in the box')")
@@ -338,11 +458,14 @@ def recording_mode(config: dict):
                 
                 mode_text = "resumed and completed" if should_resume else "completed"
                 typer.echo(f"✅ Recording {mode_text}!")
-                typer.echo(f"📊 Dataset: {dataset_repo_id}")
+                
+                # Get the actual dataset name from the record config for display
+                actual_repo_id = record_config.dataset.repo_id
+                typer.echo(f"📊 Dataset: {actual_repo_id}")
                 typer.echo(f"📈 Total episodes in dataset: {dataset.num_episodes}")
                 
                 if push_to_hub:
-                    typer.echo(f"🚀 Dataset pushed to HuggingFace Hub: https://huggingface.co/datasets/{dataset_repo_id}")
+                    typer.echo(f"🚀 Dataset pushed to HuggingFace Hub: https://huggingface.co/datasets/{actual_repo_id}")
                 
                 break  # Success, exit retry loop
                 
@@ -636,6 +759,20 @@ def training_mode(config: dict):
     if preconfigured:
         # Use preconfigured settings
         dataset_repo_id = preconfigured.get('dataset_repo_id')
+        # Clean ANSI escape codes to prevent file system errors
+        if dataset_repo_id:
+            dataset_repo_id = clean_ansi_codes(dataset_repo_id)
+            
+            # Additional validation: Ensure dataset_repo_id doesn't start with '/' or contain problematic characters
+            if dataset_repo_id.startswith('/'):
+                typer.echo(f"⚠️  Warning: dataset_repo_id starts with '/', removing it")
+                dataset_repo_id = dataset_repo_id.lstrip('/')
+            
+            # Ensure dataset_repo_id has proper format (owner/name or local/name)
+            if '/' not in dataset_repo_id:
+                dataset_repo_id = f"local/{dataset_repo_id}"
+                typer.echo(f"🔧 Fixed dataset_repo_id format: '{dataset_repo_id}'")
+        
         output_dir = preconfigured.get('output_dir')
         policy_type = preconfigured.get('policy_type')
         training_args = preconfigured.get('training_args', {})
@@ -650,8 +787,7 @@ def training_mode(config: dict):
     
     # Get all configuration parameters
     if preconfigured:
-        # Use preconfigured settings
-        dataset_repo_id = preconfigured.get('dataset_repo_id')
+        # Use preconfigured settings (dataset_repo_id already cleaned above)
         output_dir = preconfigured.get('output_dir')
         policy_name = preconfigured.get('policy_type')
         training_steps = training_args.get('training_steps', 20000)
@@ -674,6 +810,38 @@ def training_mode(config: dict):
     else:
         # Get configuration from user input
         dataset_repo_id = Prompt.ask("Enter dataset repository ID", default="lerobot/svla_so101_pickplace")
+        
+        # Clean ANSI escape codes to prevent file system errors
+        dataset_repo_id = clean_ansi_codes(dataset_repo_id)
+        
+        # Additional validation: Ensure dataset_repo_id doesn't start with '/' or contain problematic characters
+        if dataset_repo_id.startswith('/'):
+            typer.echo(f"⚠️  Warning: dataset_repo_id starts with '/', removing it")
+            dataset_repo_id = dataset_repo_id.lstrip('/')
+        
+        # Ensure dataset_repo_id has proper format (owner/name or local/name)
+        if '/' not in dataset_repo_id:
+            # Check if dataset exists on HuggingFace Hub first
+            from solo_server.commands.robots.lerobot.auth import get_stored_credentials
+            stored_username, _ = get_stored_credentials()
+            
+            if stored_username:
+                # Try HuggingFace Hub format first
+                hf_repo_id = f"{stored_username}/{dataset_repo_id}"
+                typer.echo(f"🔍 Checking for dataset on HuggingFace Hub: {hf_repo_id}")
+                
+                # Check if dataset exists on hub
+                if check_dataset_exists(hf_repo_id):
+                    dataset_repo_id = hf_repo_id
+                    typer.echo(f"✅ Found dataset on HuggingFace Hub: {dataset_repo_id}")
+                else:
+                    # Fall back to local format
+                    dataset_repo_id = f"local/{dataset_repo_id}"
+                    typer.echo(f"🔧 Using local dataset: {dataset_repo_id}")
+            else:
+                # No username available, use local format
+                dataset_repo_id = f"local/{dataset_repo_id}"
+                typer.echo(f"🔧 Fixed dataset_repo_id format: '{dataset_repo_id}'")
         
         typer.echo("Select policy type:")
         typer.echo("1. SmolVLA (Vision-Language-Action model)")
@@ -719,9 +887,21 @@ def training_mode(config: dict):
                 # Get policy repository ID
                 policy_name_clean = policy_name.replace("_", "-")
                 dataset_name_clean = dataset_repo_id.split("/")[-1].replace("_", "-")
+                
+                # Clean the dataset name to remove any problematic characters
+                dataset_name_clean = clean_ansi_codes(dataset_name_clean)
+                if dataset_name_clean.startswith('/'):
+                    dataset_name_clean = dataset_name_clean.lstrip('/')
+                
                 default_policy_repo = f"{hf_username}/{policy_name_clean}-{dataset_name_clean}"
                 
                 policy_repo_id = Prompt.ask("Enter policy repo id", default=default_policy_repo)
+                
+                # Clean the policy repository ID to remove any problematic characters
+                policy_repo_id = clean_ansi_codes(policy_repo_id)
+                if policy_repo_id.startswith('/'):
+                    policy_repo_id = policy_repo_id.lstrip('/')
+                    typer.echo(f"🔧 Cleaned policy repo ID: {policy_repo_id}")
         
         # Step 4: WandB logging configuration
         typer.echo(f"\n📊 Step 4: Weights & Biases Configuration")
@@ -747,6 +927,9 @@ def training_mode(config: dict):
                 typer.echo(f"❌ Error during WandB login: {e}")
                 typer.echo("Continuing without WandB logging.")
                 use_wandb = False
+    
+    # Debug: Log the final dataset_repo_id before training
+    typer.echo(f"🔍 Debug - Final dataset_repo_id for training: '{dataset_repo_id}'")
     
     # Check if dataset exists locally
     if check_dataset_exists(dataset_repo_id):
@@ -852,6 +1035,12 @@ def training_mode(config: dict):
     from lerobot.policies.smolvla.configuration_smolvla import SmolVLAConfig
     from lerobot.policies.pi0.configuration_pi0 import PI0Config
     
+    # Suppress warnings
+    import warnings
+    warnings.filterwarnings("ignore", category=UserWarning, module="torchvision")
+    warnings.filterwarnings("ignore", message=".*torch_dtype.*")
+    warnings.filterwarnings("ignore", message=".*video decoding.*")
+    
     try:
         # Create output directory only if resuming (LeRobot will create it otherwise)
         if resume_training:
@@ -902,8 +1091,16 @@ def training_mode(config: dict):
         
         # Set repo_id for hub pushing if configured
         if policy_repo_id:
+            # Final cleaning of policy_repo_id before setting
+            original_repo_id = policy_repo_id
+            policy_repo_id = clean_repo_id(policy_repo_id)
+            
+            if original_repo_id != policy_repo_id:
+                typer.echo(f"🔧 Cleaned policy repo ID: '{original_repo_id}' -> '{policy_repo_id}'")
+            
             # Add repo_id as an attribute to the policy config
             policy_config.repo_id = policy_repo_id
+            typer.echo(f"🔍 Setting policy repo_id to: '{policy_config.repo_id}'")
         policy_config.push_to_hub = push_to_hub
         
         # Create WandB config
@@ -912,15 +1109,15 @@ def training_mode(config: dict):
             project=wandb_project if use_wandb else None
         )
         
-        # Create training config
+        # Create training config with progress tracking
         train_config = TrainPipelineConfig(
             dataset=dataset_config,
             policy=policy_config,
             output_dir=output_path,
             steps=training_steps,
             batch_size=batch_size,
-            save_freq=3000,  # Save checkpoints regularly
-            save_checkpoint= True,
+            save_freq=1000,  # Save checkpoints every 1000 steps
+            save_checkpoint=True,
             wandb=wandb_config,
             seed=1000,
             resume=resume_training,  # Use the resume flag we determined above
@@ -929,12 +1126,21 @@ def training_mode(config: dict):
         typer.echo("🎓 Starting training... This may take a while.")
         typer.echo("💡 Tips:")
         typer.echo("   • Training progress will be logged to the console")
+        typer.echo(f"   • Checkpoints saved every 1000 steps")
         if use_wandb:
             typer.echo(f"   • Monitor progress at https://wandb.ai/{wandb_project}")
         typer.echo("   • Checkpoints will be saved to the output directory")
         typer.echo("   • Press Ctrl+C to stop training early")
         
-        # Start training
+        # Add progress tracking
+        typer.echo(f"\n📊 Training Progress:")
+        typer.echo(f"   • Total steps: {training_steps}")
+        typer.echo(f"   • Batch size: {batch_size}")
+        typer.echo(f"   • Estimated time: {training_steps * batch_size / 1000:.1f} minutes")
+        
+        # Start training with progress tracking
+        typer.echo(f"\n🚀 Starting training at step 0/{training_steps}...")
+        typer.echo("📈 Progress will be shown in the console output below...")
         train(train_config)
         
         typer.echo(f"✅ Training completed!")
