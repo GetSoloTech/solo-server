@@ -45,7 +45,7 @@ solo --help
 <details>
 <summary><strong>Video: Solo Tech Installation</strong></summary>
 
-[![Video: Solo Tech Installation](media/playable_thumbnail.png)](https://youtu.be/x2pVuYr08vk)
+[![Video: Solo Tech Installation](media/SoloTechInstallThumbnail.png)](https://youtu.be/x2pVuYr08vk)
 
 </details>
 
@@ -79,7 +79,7 @@ source solo_venv/bin/activate
 <details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
-[![Video: Mac Quickstart Installation](media/playable_thumbnail.png)](https://youtu.be/bGjaIfKvyAA)
+[![Video: Mac Quickstart Installation](media/MacQuickInstallThumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
 </details>
 
