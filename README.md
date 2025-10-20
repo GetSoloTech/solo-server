@@ -42,6 +42,13 @@ solo --help
 
 ```
 
+<details>
+<summary><strong>Video: Solo Tech Installation</strong></summary>
+
+[![Video: Solo Tech Installation](media/playable_thumbnail.png)](https://youtu.be/x2pVuYr08vk)
+
+</details>
+
 ## Quick Installation for Mac (Automated)
 
 For Mac users, we provide an automated installation script that handles all the setup steps:
@@ -72,7 +79,7 @@ source solo_venv/bin/activate
 <details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
-[![Video: Mac Quickstart Installationimage.png](media/playable_thumbnail.png)](https://youtu.be/bGjaIfKvyAA)
+[![Video: Mac Quickstart Installation](media/playable_thumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
 </details>
 
