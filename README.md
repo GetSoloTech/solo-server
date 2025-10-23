@@ -6,27 +6,16 @@
 [![License: MIT](https://img.shields.io/pypi/l/solo-server)](https://opensource.org/licenses/MIT)
 [![PyPI Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
 
-**Production-ready server for Physical AI inference with FastMCP integration**
+**Fastest way to deploy physical AI**
 
-Add specialized AI capabilities to any inference server with modular Python components
+CLI for Solo-Server
+Serving models in the physical world; optimized for on-device operation
 
 </div>
 
 ## Installation
 
 ```bash
-# uv package manager installation, skip if uv already exists
-# Mac & Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh  
-# Windows Powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Create Python virtual environment, recommended Python version 3.12
-uv venv --python 3.12
-# Mac & Linux
-source .venv/bin/activate
-# Windows
-source .venv/scripts/activate
 
 #Choose one of the following for solo-server installation
 #1. Install solo server from PyPI python manager
