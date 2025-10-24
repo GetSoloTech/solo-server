@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/getsolotech-solo-server-badge.png)](https://mseep.ai/app/getsolotech-solo-server)
+
 # Solo Server
 
 <div align="center">
