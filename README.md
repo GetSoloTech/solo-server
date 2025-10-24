@@ -2,8 +2,8 @@
 
 <div align="center">
 
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/pypi/l/solo-server)](https://opensource.org/licenses/MIT)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![PyPI Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
 
 **Fastest way to deploy physical AI**
@@ -11,6 +11,15 @@
 CLI for Solo-Server
 Serving models in the physical world; optimized for on-device operation
 
+</div>
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="media/LeRobot_Chess.png" alt="LeRobot Chess Match Screenshot" title="LeRobot Chess Match" width="250" height="150"></td>
+      <td align="center"><img src="media/LeRobot_Writer.png" alt="LeRobot Writer Screenshot" title="LeRobot Author" width="250" height="150"></td>
+    </tr>
+  </table>
 </div>
 
 ## Installation
