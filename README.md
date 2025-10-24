@@ -16,8 +16,8 @@ Serving models in the physical world; optimized for on-device operation
 <div align="center">
   <table>
     <tr>
-      <td align="center"><img src="media/LeRobot_Chess.png" alt="LeRobot Chess Match Screenshot" title="LeRobot Chess Match" width="250" height="150"></td>
-      <td align="center"><img src="media/LeRobot_Writer.png" alt="LeRobot Writer Screenshot" title="LeRobot Author" width="250" height="150"></td>
+      <td align="center"><img src="media/LeRobot_Chess.png" alt="LeRobot Chess Match Screenshot" title="LeRobot Chess Match" width="375" height="225"></td>
+      <td align="center"><img src="media/LeRobot_Writer.png" alt="LeRobot Writer Screenshot" title="LeRobot Author" width="375" height="225"></td>
     </tr>
   </table>
 </div>
