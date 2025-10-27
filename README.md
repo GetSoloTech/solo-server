@@ -2,31 +2,29 @@
 
 <div align="center">
 
-[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/pypi/l/solo-server)](https://opensource.org/licenses/MIT)
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![PyPI Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
 
-**Production-ready server for Physical AI inference with FastMCP integration**
+**Fastest way to deploy physical AI**
 
-Add specialized AI capabilities to any inference server with modular Python components
+CLI for Solo-Server
+Serving models in the physical world; optimized for on-device operation
 
+</div>
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="media/LeRobot_Chess.png" alt="LeRobot Chess Match Screenshot" title="LeRobot Chess Match" width="375" height="225"></td>
+      <td align="center"><img src="media/LeRobot_Writer.png" alt="LeRobot Writer Screenshot" title="LeRobot Author" width="375" height="225"></td>
+    </tr>
+  </table>
 </div>
 
 ## Installation
 
 ```bash
-# uv package manager installation, skip if uv already exists
-# Mac & Linux
-curl -LsSf https://astral.sh/uv/install.sh | sh  
-# Windows Powershell
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
-
-# Create Python virtual environment, recommended Python version 3.12
-uv venv --python 3.12
-# Mac & Linux
-source .venv/bin/activate
-# Windows
-source .venv/scripts/activate
 
 #Choose one of the following for solo-server installation
 #1. Install solo server from PyPI python manager
@@ -43,9 +41,43 @@ solo --help
 ```
 
 <details>
+<summary><strong>Video: Solo Tech Installation</strong></summary>
+
+[![Video: Solo Tech Installation](media/SoloTechInstallThumbnail.png)](https://youtu.be/x2pVuYr08vk)
+
+</details>
+
+## Quick Installation for Mac (Automated)
+
+For Mac users, we provide an automated installation script that handles all the setup steps:
+
+```bash
+# Clone the repository
+git clone https://github.com/GetSoloTech/solo-server.git
+cd solo-server
+
+# Make the installation script executable
+chmod +x install_mac.sh
+
+# Run the automated installation
+./install_mac.sh
+```
+
+The script will automatically:
+- Install uv package manager (version 0.9.3)
+- Create a virtual environment with Python 3.12.12
+- Set up environment variables for dependencies
+- Install solo-server in development mode with fallback handling for mujoco dependencies
+
+After installation, activate the virtual environment:
+```bash
+source solo_venv/bin/activate
+```
+
+<details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
-[![Video: Quickstart Installationimage.png](media/playable_thumbnail.png)](https://youtu.be/ci-Hw0rfnN0)
+[![Video: Mac Quickstart Installation](media/MacQuickInstallThumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
 </details>
 
