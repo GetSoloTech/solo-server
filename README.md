@@ -23,6 +23,8 @@ Serving models in the physical world; optimized for on-device operation
 </div>
 
 ## Installation
+First, install the uv package manager and setup a virtual environment as 
+explained in [prereq.md](prereq.md)
 
 ```bash
 
