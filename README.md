@@ -83,7 +83,8 @@ source solo_venv/bin/activate
 
 </details>
 
-## Windows quick download:
+## Quick İnstallation for Windows (Automated):
+For Windows users, we provide an automated installation script that handles all the setup steps:
 
 ## Solo Commands:
 
