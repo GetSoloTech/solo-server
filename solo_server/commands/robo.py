@@ -14,12 +14,12 @@ def robo(
     motors: str = typer.Option(
         None,
         "--motors",
-        help="Setup motor IDs: 'leader', 'follower', or 'both'",
+        help="Setup motor IDs: 'leader', 'follower', or 'all'",
     ),
     calibrate: str = typer.Option(
         None,
         "--calibrate",
-        help="Calibrate robot arms: 'leader', 'follower', or 'both' (requires motor setup)",
+        help="Calibrate robot arms: 'leader', 'follower', or 'all' (requires motor setup)",
     ),
     teleop: bool = typer.Option(False, "--teleop", help="Start teleoperation (requires calibrated arms)"),
     record: bool = typer.Option(False, "--record", help="Record data for training (requires calibrated arms)"),

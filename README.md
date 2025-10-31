@@ -115,8 +115,8 @@ Find more details here: [Solo Robo Documentation](solo_server/commands/robots/le
 
 ```bash
 # Motors (both) → Calibrate (both) → Teleop
-solo robo --type lerobot --motors both
-solo robo --type lerobot --calibrate both
+solo robo --type lerobot --motors all
+solo robo --type lerobot --calibrate all
 solo robo --type lerobot --teleop
 
 # Record a new local dataset with prompts

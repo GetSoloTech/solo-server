@@ -297,9 +297,21 @@ def recording_mode(config: dict):
         # Validate configuration using utility function
         leader_port, follower_port, leader_calibrated, follower_calibrated, robot_type = validate_lerobot_config(config)
         
-        if not (leader_port and follower_port and leader_calibrated and follower_calibrated):
-            display_calibration_error()
-            return
+        if not robot_type:
+            # Ask for robot type
+            typer.echo("\n🤖 Select your robot type:")
+            typer.echo("1. SO100")
+            typer.echo("2. SO101")
+            robot_choice = int(Prompt.ask("Enter robot type", default="2"))
+            robot_type = "so100" if robot_choice == 1 else "so101"
+            config['robot_type'] = robot_type
+        if not leader_port:
+            leader_port = detect_arm_port("leader")
+            config['leader_port'] = leader_port
+        if not follower_port:
+            follower_port = detect_arm_port("follower")
+            config['follower_port'] = follower_port
+        
         # Select ids
         known_leader_ids, known_follower_ids = get_known_ids(config)
         default_leader_id = config.get('lerobot', {}).get('leader_id') or f"{robot_type}_leader"
@@ -315,11 +327,6 @@ def recording_mode(config: dict):
                 typer.echo(f"   {i}. {kid}")
             follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
 
-        if not leader_id:
-            leader_id = f"{robot_type}_leader"
-        if not follower_id:
-            follower_id = f"{robot_type}_follower"
-        
         # Step 1: HuggingFace authentication (optional)
         typer.echo("\n📋 Step 1: HuggingFace Hub Configuration")
         push_to_hub = Confirm.ask("Would you like to push the recorded data to HuggingFace Hub?", default=False)
@@ -562,11 +569,18 @@ def inference_mode(config: dict):
         # Validate configuration using utility function
         leader_port, follower_port, leader_calibrated, follower_calibrated, robot_type = validate_lerobot_config(config)
         
-        if not (follower_port and follower_calibrated):
-            typer.echo("❌ Follower arm is not properly calibrated.")
-            display_calibration_error()
-            return
-    
+        if not robot_type:
+            # Ask for robot type
+            typer.echo("\n🤖 Select your robot type:")
+            typer.echo("1. SO100")
+            typer.echo("2. SO101")
+            robot_choice = int(Prompt.ask("Enter robot type", default="2"))
+            robot_type = "so100" if robot_choice == 1 else "so101"
+            config['robot_type'] = robot_type
+        if not follower_port:
+            follower_port = detect_arm_port("follower")
+            config['follower_port'] = follower_port
+        
         typer.echo("✅ Found calibrated follower arm:")
         typer.echo(f"   • Robot type: {robot_type.upper()}")
         typer.echo(f"   • Follower arm: {follower_port}")
@@ -591,11 +605,6 @@ def inference_mode(config: dict):
             for i, kid in enumerate(known_follower_ids, 1):
                 typer.echo(f"   {i}. {kid}")
             follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
-
-        if not leader_id:
-            leader_id = f"{robot_type}_leader"
-        if not follower_id:
-            follower_id = f"{robot_type}_follower"
         
         # Step 1: HuggingFace authentication
         typer.echo("\n📋 Step 1: HuggingFace Authentication")
