@@ -82,6 +82,24 @@ source solo_venv/bin/activate
 [![Video: Mac Quickstart Installation](media/MacQuickInstallThumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
 </details>
+Quick Installation for Windows (Automated)
+For Windows users, we provide an automated PowerShell installation script that handles all setup steps.
+# Clone the repository
+git clone https://github.com/GetSoloTech/solo-server.git
+cd solo-server
+
+# Run the automated installation
+powershell -ExecutionPolicy Bypass -File .\install_windows.ps1
+The script will automatically:
+Ensure Python 3.12 is installed (installs via Winget if missing)
+Install the uv package manager
+Create a virtual environment named solo_venv
+Set environment variables for MuJoCo (if needed)
+Install solo-server in editable (development) mode with fallback dependency setup
+After installation, activate the virtual environment:
+.\solo_venv\Scripts\Activate.ps1
+Then verify your setup
+solo --help          # test the CLI
 
 ## Solo Commands:
 
