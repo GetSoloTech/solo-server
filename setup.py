@@ -25,7 +25,7 @@ setup(
         "rich",
         "huggingface_hub",
         "pydantic",
-        "lerobot[feetech]==0.3.3",
+        "lerobot[feetech]==0.4.0",
         "transformers",
         "accelerate",
         "num2words"

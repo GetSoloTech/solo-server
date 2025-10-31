@@ -16,7 +16,7 @@ def check_dataset_exists(repo_id: str, root: Optional[str] = None) -> bool:
         dataset_path = Path(root)
     else:
         # Import
-        from lerobot.constants import HF_LEROBOT_HOME
+        from lerobot.utils.constants import HF_LEROBOT_HOME
         dataset_path = HF_LEROBOT_HOME / repo_id
     
     return dataset_path.exists() and dataset_path.is_dir()

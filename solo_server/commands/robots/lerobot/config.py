@@ -9,7 +9,7 @@ from typing import Optional, Tuple, TYPE_CHECKING, Dict, List
 from solo_server.config import CONFIG_PATH
 
 if TYPE_CHECKING:
-    from lerobot.record import RecordConfig
+    from lerobot.scripts.lerobot_record import RecordConfig
 
 # Import lerobot modules
 from lerobot.teleoperators.so100_leader import SO100LeaderConfig
