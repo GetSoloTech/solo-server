@@ -89,8 +89,14 @@ For Windows users, we provide an automated installation script that handles all 
 # Clone the repository
 git clone https://github.com/GetSoloTech/solo-server.git
 cd solo-server
+
 # Run the automated installation
 powershell -ExecutionPolicy Bypass -File .\install_windows.ps1
+
+# After installation, activate the virtual environment:
+.\solo_venv\Scripts\Activate.ps1
+Then verify your setup
+solo --help          
 ```
 
 ## Solo Commands:
