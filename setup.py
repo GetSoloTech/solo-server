@@ -5,11 +5,7 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="solo-server",
-<<<<<<< Updated upstream
-    version="0.5.0",
-=======
     version="0.5.2",
->>>>>>> Stashed changes
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
     description="Platform for Physiscal AI Inference.",
