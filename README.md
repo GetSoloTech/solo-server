@@ -82,7 +82,7 @@ source solo_venv/bin/activate
 [![Video: Mac Quickstart Installation](media/MacQuickInstallThumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
 </details>
-Quick Installation for Windows (Automated)
+## Quick Installation for Windows (Automated)
 For Windows users, we provide an automated PowerShell installation script that handles all setup steps.
 # Clone the repository
 git clone https://github.com/GetSoloTech/solo-server.git
