@@ -5,6 +5,7 @@ Calibration utilities for LeRobot
 import typer
 from rich.prompt import Prompt, Confirm
 from typing import Dict
+from typing import Optional
 from lerobot.scripts.lerobot_calibrate import calibrate, CalibrateConfig
 from lerobot.teleoperators import make_teleoperator_from_config
 from lerobot.robots import make_robot_from_config
@@ -15,10 +16,6 @@ from solo_server.commands.robots.lerobot.config import (
     get_known_ids,
     add_known_id,
 )
-
-
-from typing import Optional
-
 
 def calibrate_arm(arm_type: str, port: str, robot_type: str = "so100", arm_id: Optional[str] = None) -> bool:
     """
@@ -100,8 +97,8 @@ def calibration(main_config: dict = None, arm_type: str = None) -> Dict:
     """
     config = {}
 
-    if arm_type is not None and arm_type not in ("leader", "follower", "both"):
-        raise ValueError(f"Invalid arm type: {arm_type}")
+    if arm_type is not None and arm_type not in ("leader", "follower", "all"):
+        raise ValueError(f"Invalid arm type: {arm_type}, please use 'leader', 'follower', or 'all'")
     
     # Gather any existing config and ask once to reuse
     lerobot_config = main_config.get('lerobot', {}) if main_config else {}
@@ -119,7 +116,7 @@ def calibration(main_config: dict = None, arm_type: str = None) -> Dict:
             typer.echo(f"   • Leader port: {existing_leader_port}")
         elif arm_type == "follower" and existing_follower_port:
             typer.echo(f"   • Follower port: {existing_follower_port}")
-        elif arm_type == "both":
+        else:
             if existing_leader_port:
                 typer.echo(f"   • Leader port: {existing_leader_port}")
             if existing_follower_port:
@@ -146,7 +143,7 @@ def calibration(main_config: dict = None, arm_type: str = None) -> Dict:
         setup_leader = False
         setup_follower = True
     else:
-        # arm_type is None or empty, setup both
+        # setup both arms
         setup_leader = True
         setup_follower = True
     
@@ -213,10 +210,10 @@ def display_calibration_error():
     """Display standard calibration error message."""
     typer.echo("❌ Arms are not properly calibrated.")
     typer.echo("Please run the following commands in order:")
-    typer.echo("   • 'solo robo --motors' - Setup motor IDs for both arms")
+    typer.echo("   • 'solo robo --motors all' - Setup motor IDs for both arms")
     typer.echo("   • 'solo robo --motors leader' - Setup motor IDs for leader arm only")
     typer.echo("   • 'solo robo --motors follower' - Setup motor IDs for follower arm only")
-    typer.echo("   • 'solo robo --calibrate both' - Calibrate both arms")
+    typer.echo("   • 'solo robo --calibrate all' - Calibrate both arms")
     typer.echo("   • 'solo robo --calibrate leader' - Calibrate leader arm only")
     typer.echo("   • 'solo robo --calibrate follower' - Calibrate follower arm only")
 
@@ -234,7 +231,7 @@ def display_arms_status(robot_type: str, leader_port: str, follower_port: str, a
         if follower_port:
             typer.echo(f"   • Follower arm: {follower_port}")
     else:
-        # Show both arms when arm_type is None or "both"
+        # Show both arms when arm_type is "all"
         if leader_port:
             typer.echo(f"   • Leader arm: {leader_port}")
         if follower_port:
@@ -247,13 +244,13 @@ def check_calibration_success(arm_config: dict, setup_motors: bool = False) -> N
     follower_configured = arm_config.get('follower_port') and arm_config.get('follower_calibrated')
     
     if leader_configured and follower_configured:
-        typer.echo("🎉 Both arms calibrated successfully!")
+        typer.echo("🎉 All arms calibrated successfully!")
         
         if setup_motors:
             leader_motors = arm_config.get('leader_motors_setup', False)
             follower_motors = arm_config.get('follower_motors_setup', False)
             if leader_motors and follower_motors:
-                typer.echo("✅ Motor IDs have been set up for both arms.")
+                typer.echo("✅ Motor IDs have been set up for both leader and follower arm.")
             else:
                 typer.echo("⚠️  Some motor setups may have failed, but calibration completed.")
         
@@ -264,4 +261,4 @@ def check_calibration_success(arm_config: dict, setup_motors: bool = False) -> N
         typer.echo("✅ Follower arm calibrated successfully!")
     else:
         typer.echo("⚠️  Calibration failed or was not completed.")
-        typer.echo("You can run 'solo robo --calibrate' again to retry.")
+        typer.echo("You can run 'solo robo --calibrate all' again to retry.")

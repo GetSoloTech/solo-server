@@ -6,10 +6,10 @@ Use Solo Server's `solo robo` command to run a complete robotics workflow with L
 
 ```bash
 # 1) Setup motor IDs (both arms)
-solo robo --motors both
+solo robo --motors all   # leader, follower, all
 
 # 2) Calibrate (both arms)
-solo robo --calibrate both
+solo robo --calibrate all  # leader, follower, all
 
 # 3) Teleoperate
 solo robo --teleop
@@ -39,8 +39,8 @@ solo robo --inference
 Most arms provided by Solo Tech already have motor IDs set up, so you can usually skip this step and proceed directly to calibration. Only run this command if you encounter a "missing motor ids" error or if you need to reassign motor IDs for the leader and/or follower arm.
 
 ```bash
-# Setup both arms (default)
-solo robo --motors
+# Setup both arms 
+solo robo --motors all
 
 # Setup only leader
 solo robo --motors leader
@@ -67,7 +67,7 @@ Calibrate the leader and/or follower arm(s) after motor IDs are set.
 
 ```bash
 # Calibrate both
-solo robo --calibrate both
+solo robo --calibrate all
 
 # Calibrate only leader
 solo robo --calibrate leader

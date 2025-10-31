@@ -28,7 +28,7 @@ def validate_lerobot_config(config: dict) -> tuple[Optional[str], Optional[str],
     follower_port = lerobot_config.get('follower_port')
     leader_calibrated = lerobot_config.get('leader_calibrated', False)
     follower_calibrated = lerobot_config.get('follower_calibrated', False)
-    robot_type = lerobot_config.get('robot_type', 'so100')
+    robot_type = lerobot_config.get('robot_type')
     
     return leader_port, follower_port, leader_calibrated, follower_calibrated, robot_type
 
@@ -49,7 +49,7 @@ def save_lerobot_config(config: dict, arm_config: dict) -> None:
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
     
-    typer.echo(f"\n✅ Configuration saved to {CONFIG_PATH}")
+    typer.echo(f"\nConfiguration saved to {CONFIG_PATH}")
 
 
 def get_known_ids(config: dict) -> Tuple[List[str], List[str]]:
