@@ -8,7 +8,7 @@ setup(
     version="0.5.2",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
-    description="Platform for Physiscal AI Inference.",
+    description="CLI for Physical AI.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/GetSoloTech/solo-server",

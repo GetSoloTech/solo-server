@@ -8,8 +8,8 @@
 
 **Fastest way to deploy physical AI**
 
-CLI for Solo-Server
-Serving models in the physical world; optimized for on-device operation
+CLI for Solo-Server:
+*Serving models in the physical world; optimized for on-device operation*
 
 </div>
 
@@ -23,6 +23,8 @@ Serving models in the physical world; optimized for on-device operation
 </div>
 
 ## Installation
+First, install the uv package manager and setup a virtual environment as 
+explained in [prereq.md](prereq.md)
 
 ```bash
 
@@ -86,17 +88,17 @@ source solo_venv/bin/activate
 ```bash
 solo --help
                                                                                                            
-╭─ Commands ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ setup      Set up Solo Server environment with interactive prompts and saves configuration to config.json.                                                                                                          │
-│ robo       Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference                                                                                                    │
-│ serve      Start a model server with the specified model.                                                                                                                                                           │
-│ status     Check running models, system status, and configuration.                                                                                                                                                  │
-│ list       List all downloaded models available in HuggingFace cache and Ollama.                                                                                                                                    │
-│ test       Test if the Solo server is running correctly. Performs an inference test to verify server functionality.                                                                                                 │
-│ stop       Stops Solo Server services. You can specify a server type with 'ollama', 'vllm', or 'llama.cpp'                                                                                                          │
-│            Otherwise, all Solo services will be stopped.                                                                                                                                                            │
-│ download   Downloads a Hugging Face model using the huggingface repo id.                                                                                                                                            │
-╰─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ setup      Set up Solo Server environment with interactive prompts and saves configuration to config.json.           │
+│ robo       Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference     │
+│ serve      Start a model server with the specified model.                                                            │
+│ status     Check running models, system status, and configuration.                                                   │
+│ list       List all downloaded models available in HuggingFace cache and Ollama.                                     │
+│ test       Test if the Solo server is running correctly. Performs an inference test to verify server functionality.  │
+│ stop       Stops Solo Server services. You can specify a server type with 'ollama', 'vllm', or 'llama.cpp'           │
+│            Otherwise, all Solo services will be stopped.                                                             │
+│ download   Downloads a Hugging Face model using the huggingface repo id.                                             │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ```
 ## Start server with SML models
