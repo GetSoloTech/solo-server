@@ -94,8 +94,10 @@ cd solo-server
 powershell -ExecutionPolicy Bypass -File .\install_windows.ps1
 
 # After installation, activate the virtual environment:
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
 .\solo_venv\Scripts\Activate.ps1
-Then verify your setup
+
+# Then verify your setup
 solo --help          
 ```
 
