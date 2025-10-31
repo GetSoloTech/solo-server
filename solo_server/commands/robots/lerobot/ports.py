@@ -132,7 +132,7 @@ def detect_and_retry_ports(leader_port: str, follower_port: str, config: dict = 
     Detect new ports if connection fails and update config
     Returns (new_leader_port, new_follower_port)
     """
-    typer.echo("🔍 Ports may have changed. Detecting new ports...")
+    typer.echo("🔍 Detecting new ports...")
     
     # Detect new ports
     new_leader_port = detect_arm_port("leader")
@@ -140,8 +140,8 @@ def detect_and_retry_ports(leader_port: str, follower_port: str, config: dict = 
     
     if new_leader_port and new_follower_port:
         typer.echo(f"✅ Found new ports:")
-        typer.echo(f"   • Leader: {leader_port} → {new_leader_port}")
-        typer.echo(f"   • Follower: {follower_port} → {new_follower_port}")
+        typer.echo(f"   • Leader: {new_leader_port}")
+        typer.echo(f"   • Follower: {new_follower_port}")
         
         # Update config with new ports if provided
         if config:
@@ -153,6 +153,9 @@ def detect_and_retry_ports(leader_port: str, follower_port: str, config: dict = 
         
         return new_leader_port, new_follower_port
     else:
-        typer.echo("❌ Could not detect new ports automatically.")
-        typer.echo("Please check your robot connections and try again.")
-        return leader_port, follower_port
+        error_msg = "Could not detect new ports automatically."
+        if leader_port is None:
+            error_msg += " Leader port is not set."
+        if follower_port is None:
+            error_msg += " Follower port is not set."
+        raise ValueError(error_msg) 

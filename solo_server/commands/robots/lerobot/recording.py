@@ -121,7 +121,7 @@ def unified_record_config(
     Uses the same underlying lerobot record infrastructure.
     """
     # Import lerobot components
-    from lerobot.record import RecordConfig, DatasetRecordConfig
+    from lerobot.scripts.lerobot_record import RecordConfig, DatasetRecordConfig
     from lerobot.configs.policies import PreTrainedConfig
     
     # Create robot configurations
@@ -416,7 +416,7 @@ def recording_mode(config: dict):
         pass
     
     # Import lerobot recording components
-    from lerobot.record import record
+    from lerobot.scripts.lerobot_record import record
     
     try:
         
@@ -640,7 +640,7 @@ def inference_mode(config: dict):
         save_inference_config(config, inference_args)
     
     # Import lerobot inference components
-    from lerobot.record import record
+    from lerobot.scripts.lerobot_record import record
     import os
     
     try:
@@ -1025,7 +1025,7 @@ def training_mode(config: dict):
         save_training_config(config, training_args)
 
     # Import lerobot training components
-    from lerobot.scripts.train import train
+    from lerobot.scripts.lerobot_train import train
     from lerobot.configs.train import TrainPipelineConfig
     from lerobot.configs.default import DatasetConfig, WandBConfig
     from lerobot.configs.policies import PreTrainedConfig

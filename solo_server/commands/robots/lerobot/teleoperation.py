@@ -16,7 +16,7 @@ from solo_server.commands.robots.lerobot.mode_config import use_preconfigured_ar
 from solo_server.commands.robots.lerobot.ports import detect_arm_port, detect_and_retry_ports
 
 
-def teleoperation(leader_port: str, follower_port: str, robot_type: str = "so100", camera_config: Optional[Dict] = None, main_config: dict = None) -> bool:
+def teleoperation(leader_port: Optional[str] = None, follower_port: Optional[str] = None, robot_type: Optional[str] = None, camera_config: Optional[Dict] = None, main_config: dict = None) -> bool:
     """
     Start teleoperation between leader and follower arms with optional camera support
     """
@@ -38,11 +38,18 @@ def teleoperation(leader_port: str, follower_port: str, robot_type: str = "so100
             follower_id = preconfigured.get('follower_id')
             typer.echo("✅ Using preconfigured teleoperation settings")
     
-    typer.echo(f"\n🎮 Starting teleoperation...")
-    typer.echo(f"Leader arm port: {leader_port}")
-    typer.echo(f"Follower arm port: {follower_port}")
+    if robot_type is None:
+         # Ask for robot type
+        typer.echo("\n🤖 Select your robot type:")
+        typer.echo("1. SO100")
+        typer.echo("2. SO101")
+        robot_choice = int(Prompt.ask("Enter robot type", default="2"))
+        robot_type = "so100" if robot_choice == 1 else "so101"
     
-    from lerobot.teleoperate import teleoperate, TeleoperateConfig
+    if leader_port is None or follower_port is None:
+        leader_port, follower_port = detect_and_retry_ports(leader_port, follower_port, main_config)
+    
+    from lerobot.scripts.lerobot_teleoperate import teleoperate, TeleoperateConfig
     
     # Setup cameras if not provided
     if camera_config is None:
