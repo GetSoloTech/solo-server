@@ -82,7 +82,8 @@ source solo_venv/bin/activate
 [![Video: Mac Quickstart Installation](media/MacQuickInstallThumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
 </details>
-## **Windows quick installation**
+
+## Windows quick download:
 
 ## Solo Commands:
 
