@@ -115,18 +115,18 @@ Find more details here: [Solo Robo Documentation](solo_server/commands/robots/le
 
 ```bash
 # Motors (both) → Calibrate (both) → Teleop
-solo robo --type lerobot --motors all
-solo robo --type lerobot --calibrate all
-solo robo --type lerobot --teleop
+solo robo --motors all
+solo robo --calibrate all
+solo robo --teleop
 
 # Record a new local dataset with prompts
-solo robo --type lerobot --record
+solo robo --record
 
-# Train Diffusion Policy on a recorded dataset and push to Hub
-solo robo --type lerobot --train
+# Train ACT or SmolVLA Policy on a recorded dataset and push to Hub
+solo robo --train
 
 # Inference with a hub model id (with optional Teleop override)
-solo robo --type lerobot --inference
+solo robo --inference
 ```
 
 ## API Reference
