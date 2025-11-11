@@ -45,22 +45,13 @@ def teleop_mode(config: dict):
     from solo_server.commands.robots.lerobot.calibration import display_calibration_error, display_arms_status
 
     typer.echo("🎮 Starting LeRobot teleoperation mode...")
-    
-    # Validate configuration using utility function
-    leader_port, follower_port, leader_calibrated, follower_calibrated, robot_type = validate_lerobot_config(config)
-    
-    if leader_port and follower_port and leader_calibrated and follower_calibrated:
-        # Always ask for camera setup during teleoperation
-        camera_config = None  # Force camera setup prompt
         
-        # Start teleoperation
-        success = teleoperation(leader_port, follower_port, robot_type, camera_config, config)
-        if success:
-            typer.echo("✅ Teleoperation completed.")
-        else:
-            typer.echo("❌ Teleoperation failed.")
+    # Start teleoperation
+    success = teleoperation(config)
+    if success:
+        typer.echo("✅ Teleoperation completed.")
     else:
-        display_calibration_error()
+        typer.echo("❌ Teleoperation failed.")
 
 def calibration_mode(config: dict, arm_type: str = None):
     """Handle LeRobot calibration mode"""
@@ -80,6 +71,9 @@ def motor_setup_mode(config: dict, arm_type: str = None):
     from solo_server.commands.robots.lerobot.ports import detect_arm_port
     from solo_server.commands.robots.lerobot.config import save_lerobot_config
     from rich.prompt import Prompt, Confirm
+
+    if arm_type is not None and arm_type not in ["leader", "follower", "all"]:
+        raise ValueError(f"Invalid arm type: {arm_type}, please use 'leader', 'follower', or 'all'")
     
     # Gather any existing config and ask once to reuse
     lerobot_config = config.get('lerobot', {})
@@ -92,10 +86,16 @@ def motor_setup_mode(config: dict, arm_type: str = None):
         typer.echo("\n📦 Found existing configuration:")
         if existing_robot_type:
             typer.echo(f"   • Robot type: {existing_robot_type}")
-        if existing_leader_port:
+        # Only show relevant port(s) based on arm_type
+        if arm_type == "leader" and existing_leader_port:
             typer.echo(f"   • Leader port: {existing_leader_port}")
-        if existing_follower_port:
+        elif arm_type == "follower" and existing_follower_port:
             typer.echo(f"   • Follower port: {existing_follower_port}")
+        elif arm_type not in ["leader", "follower"]:
+            if existing_leader_port:
+                typer.echo(f"   • Leader port: {existing_leader_port}")
+            if existing_follower_port:
+                typer.echo(f"   • Follower port: {existing_follower_port}")
         reuse_all = Confirm.ask("Use these settings?", default=True)
     
     if reuse_all and existing_robot_type:
@@ -118,7 +118,7 @@ def motor_setup_mode(config: dict, arm_type: str = None):
         setup_leader = False
         setup_follower = True
     else:
-        # arm_type is None or empty, setup both
+        # arm_type is "all", setup both arms
         setup_leader = True
         setup_follower = True
     
@@ -182,7 +182,7 @@ def motor_setup_mode(config: dict, arm_type: str = None):
         elif follower_setup:
             typer.echo("✅ Motor IDs have been set up for the follower arm.")
         
-        typer.echo("🔧 You can now run 'solo robo --type lerobot --calibrate' to calibrate the arms.")
+        typer.echo("🔧 You can now run 'solo robo --calibrate all' to calibrate the arms.")
     else:
         typer.echo("\n⚠️  Motor setup failed or was skipped.")
-        typer.echo("You can run 'solo robo --type lerobot --motors' again to retry.")
+        typer.echo("You can run 'solo robo --motors all' again to retry.")

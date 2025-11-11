@@ -5,10 +5,10 @@ with open("README.md", "r", encoding="utf-8") as fh:
 
 setup(
     name="solo-server",
-    version="0.5.0",
+    version="0.5.2",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
-    description="Platform for Physiscal AI Inference.",
+    description="CLI for Physical AI.",
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://github.com/GetSoloTech/solo-server",
@@ -25,7 +25,7 @@ setup(
         "rich",
         "huggingface_hub",
         "pydantic",
-        "lerobot[feetech]==0.3.3",
+        "lerobot[feetech]==0.4.0",
         "transformers",
         "accelerate",
         "num2words"

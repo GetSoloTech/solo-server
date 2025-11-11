@@ -1,27 +1,27 @@
 ## LeRobot with Solo Server:
 
-Use Solo Server's `solo robo --type lerobot` command to run a complete robotics workflow with LeRobot: motor setup, calibration, teleoperation, data recording, training, and inference.
+Use Solo Server's `solo robo` command to run a complete robotics workflow with LeRobot: motor setup, calibration, teleoperation, data recording, training, and inference.
 
 ### Quick start
 
 ```bash
 # 1) Setup motor IDs (both arms)
-solo robo --type lerobot --motors both
+solo robo --motors all   # leader, follower, all
 
 # 2) Calibrate (both arms)
-solo robo --type lerobot --calibrate both
+solo robo --calibrate all  # leader, follower, all
 
 # 3) Teleoperate
-solo robo --type lerobot --teleop
+solo robo --teleop
 
 # 4) Record dataset
-solo robo --type lerobot --record
+solo robo --record
 
 # 5) Train a policy
-solo robo --type lerobot --train
+solo robo --train
 
 # 6) Run inference
-solo robo --type lerobot --inference
+solo robo --inference
 ```
 
 ## How configuration and prompts work
@@ -39,14 +39,14 @@ solo robo --type lerobot --inference
 Most arms provided by Solo Tech already have motor IDs set up, so you can usually skip this step and proceed directly to calibration. Only run this command if you encounter a "missing motor ids" error or if you need to reassign motor IDs for the leader and/or follower arm.
 
 ```bash
-# Setup both arms (default)
-solo robo --type lerobot --motors
+# Setup both arms 
+solo robo --motors all
 
 # Setup only leader
-solo robo --type lerobot --motors leader
+solo robo --motors leader
 
 # Setup only follower
-solo robo --type lerobot --motors follower
+solo robo --motors follower
 ```
 
 ### Interactive flow
@@ -67,13 +67,13 @@ Calibrate the leader and/or follower arm(s) after motor IDs are set.
 
 ```bash
 # Calibrate both
-solo robo --type lerobot --calibrate both
+solo robo --calibrate all
 
 # Calibrate only leader
-solo robo --type lerobot --calibrate leader
+solo robo --calibrate leader
 
 # Calibrate only follower
-solo robo --type lerobot --calibrate follower
+solo robo --calibrate follower
 ```
 
 ### Interactive flow
@@ -93,7 +93,7 @@ solo robo --type lerobot --calibrate follower
 Teleoperate the follower arm using the leader arm. Requires both arms calibrated.
 
 ```bash
-solo robo --type lerobot --teleop
+solo robo --teleop
 ```
 
 ### Interactive flow
@@ -115,7 +115,7 @@ solo robo --type lerobot --teleop
 Record datasets for training while teleoperating the follower. Requires both arms calibrated.
 
 ```bash
-solo robo --type lerobot --record
+solo robo --record
 ```
 
 ### Interactive flow
@@ -141,7 +141,7 @@ solo robo --type lerobot --record
 Train a policy on recorded data.
 
 ```bash
-solo robo --type lerobot --train
+solo robo --train
 ```
 
 ### Interactive flow
@@ -167,7 +167,7 @@ solo robo --type lerobot --train
 Run a trained policy on the follower arm. Requires the follower to be calibrated. Teleoperation override is optional if the leader is calibrated and available.
 
 ```bash
-solo robo --type lerobot --inference
+solo robo --inference
 ```
 
 ### Interactive flow

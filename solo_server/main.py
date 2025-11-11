@@ -34,8 +34,6 @@ class ServerType(str, Enum):
     OLLAMA = "ollama"
     VLLM = "vllm"
     LLAMACPP = "llama.cpp"
-    LEROBOT = "lerobot"
-    NVIDIA_GROOT = "nvidia_groot"
 
 def setup():
     """
@@ -174,8 +172,6 @@ HUGGINGFACE_TOKEN={hf_token}
             description = "Good balance of performance and ease of use"
         elif server == ServerType.LLAMACPP:
             description = "Best for CPU or lower-resource machines"
-        elif server == ServerType.LEROBOT:
-            description = "Best for Robotics"
         server_table.add_row(str(i), server.value, description)
     
     console.print(server_table)
@@ -371,74 +367,6 @@ HUGGINGFACE_TOKEN={hf_token}
                 typer.echo("❌ Failed to install package. Please check your Python environment.")
                 return
 
-    elif server == ServerType.LEROBOT:
-        typer.echo("\n🤖 Setting up LeRobot environment...")
-
-        try:
-            import lerobot
-            typer.echo("✅ LeRobot package is already installed.")
-        except ImportError:
-            typer.echo("📥 Installing LeRobot package and dependencies...")
-        
-            # Check if uv is installed on the machine
-            is_uv_available = subprocess.run(["uv", "--version"], check=False, capture_output=True)
-            using_uv = False
-            
-            if is_uv_available.returncode == 0:
-                using_uv = Confirm.ask("Are you using uv for virtual environment management?", default=False)
-            
-            # Save package manager info to config
-            if 'environment' not in config:
-                config['environment'] = {}
-            config['environment']['package_manager'] = 'uv' if using_uv else 'pip'
-            
-            # Install lerobot from GitHub repo
-            typer.echo("📥 Installing LeRobot...")
-            repo_config = get_repository_config()
-            lerobot_repo = repo_config.get('lerobot', 'https://github.com/GetSoloTech/lerobot.git')
-            
-            # Required additional packages
-            additional_packages = [
-                "transformers>=4.50.3",
-                "num2words>=0.5.14", 
-                "accelerate>=1.7.0",
-                "safetensors>=0.4.3",
-                "feetech-servo-sdk>=1.0.0"
-            ]
-            
-            # Set environment variable to skip LFS files
-            env = os.environ.copy()
-            env['GIT_LFS_SKIP_SMUDGE'] = '1'
-
-            try:
-                # Install lerobot
-                if using_uv:
-                    install_cmd = ["uv", "pip", "install", f"git+{lerobot_repo}"]
-                else:
-                    install_cmd = ["pip", "install", f"git+{lerobot_repo}"]
-                
-                result = subprocess.run(install_cmd, check=True, text=True, env=env)
-                typer.echo("✅ LeRobot package installed successfully")
-                
-                # Install additional dependencies
-                typer.echo("📥 Installing additional dependencies...")
-                for package in additional_packages:
-                    typer.echo(f"Installing {package}...")
-                    if using_uv:
-                        dep_cmd = ["uv", "pip", "install", package]
-                    else:
-                        dep_cmd = ["pip", "install", package]
-                    
-                    subprocess.run(dep_cmd, check=True, text=True)
-                
-                typer.echo("✅ All dependencies installed successfully")
-                
-            except subprocess.CalledProcessError as e:
-                typer.echo(f"❌ Failed to install LeRobot package or dependencies: {e}")
-                if hasattr(e, 'stderr') and e.stderr:
-                    typer.echo(f"Error output: {e.stderr}")
-                return
-
     # Create configuration directory if it doesn't exist
     os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
 
@@ -446,12 +374,6 @@ HUGGINGFACE_TOKEN={hf_token}
     with open(CONFIG_PATH, 'w') as f:
         json.dump(config, f, indent=4)
     
-    typer.echo(f"\n✅ Configuration saved to {CONFIG_PATH}")
-    
-    # Provide appropriate completion message based on server type and success
-    if server == ServerType.LEROBOT or server == ServerType.NVIDIA_GROOT:
-            typer.echo("📱 Next steps:")
-            typer.echo("   • Run 'solo robo --help' for robot config (motors + calibration + teleoperation)")
-    else:
-        typer.echo("🎉 Solo Server setup completed successfully!")
-        typer.secho(f"Use 'solo serve -m model_name' to start serving your model.", fg=typer.colors.GREEN)
+    typer.echo(f"\nConfiguration saved to {CONFIG_PATH}")
+    typer.echo("🎉 Solo Server setup completed successfully!")
+    typer.secho(f"Use 'solo serve -m model_name' to start serving your model.", fg=typer.colors.GREEN)
