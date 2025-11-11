@@ -1,12 +1,12 @@
-# Solo Server
+# Solo CLI
 
 <div align="center">
 
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/license/apache-2-0)
 [![PyPI Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
 
-**Fastest way to deploy physical AI**
+**Fastest way to deploy Physical AI**
 
 CLI for Solo-Server:
 *Serving models in the physical world; optimized for on-device operation*
@@ -21,6 +21,15 @@ CLI for Solo-Server:
     </tr>
   </table>
 </div>
+
+<p align="center">
+  <a href="https://docs.getsolo.tech">Docs</a> |
+  <a href="https://github.com/celestoai/agentor/tree/main/docs/examples">Examples</a>
+</p>
+
+## Solo-CLI
+
+Solo-CLI powers users of Physical AI Inference by providing access to efficiency tuned AI models in the real world. From language to vision to action models, Solo-CLI allows you to interact with cutting-edge, on-device AI directly within the terminal. It is tailored for context aware intelligence, specialized for mission-critical tasks, and tuned for the edge.
 
 ## Installation
 First, install the uv package manager and setup a virtual environment as 
