@@ -13,22 +13,15 @@ CLI for Solo-Server:
 
 </div>
 
-<!--<p align="center">
-  <img src="media/solo_symbol.png" alt="Solo Tech" width="500" height="300">
-</p> -->
-
 <p align="center">
-  <a href="media/solo_symbol.zip" download>Download Solo Tech Symbol (ZIP)</a>
+  <img src="media/solo_symbol.jpeg" alt="Solo Tech" width="300" height="300">
 </p>
 
-<div align="center">
-  <table>
-    <tr>
-      <td align="center"><img src="media/LeRobot_Chess.png" alt="LeRobot Chess Match Screenshot" title="LeRobot Chess Match" width="375" height="225"></td>
-      <td align="center"><img src="media/LeRobot_Writer.png" alt="LeRobot Writer Screenshot" title="LeRobot Author" width="375" height="225"></td>
-    </tr>
-  </table>
-</div>
+<!--<p align="center">
+  <a href="media/solo_symbol.zip" download>Download Solo Tech Symbol (ZIP)</a>
+</p> -->
+
+
 
 ## Solo-CLI
 
@@ -94,6 +87,16 @@ Solo-CLI powers users of Physical AI Inference by providing access to efficiency
 |🧏🏼‍♀️ **AccessibilityMCP** | Inclusive learning support | Text, audio, video | Translations, adaptations | Special needs education, language learning | Free |
 |👨🏻‍🔬 **ResearchAutomationMCP** | Data analysis and hypothesis generation | Research datasets | Statistical insights, literature reviews | Academic research, R&D | Pro |
 |👩🏻‍🏫 **VirtualTutorMCP** | Personalized instruction | Learning patterns, preferences | Adaptive curricula, feedback | Personalized education, corporate training | Pro |
+
+
+<div align="center">
+  <table>
+    <tr>
+      <td align="center"><img src="media/LeRobot_Chess.png" alt="LeRobot Chess Match Screenshot" title="LeRobot Chess Match" width="375" height="225"></td>
+      <td align="center"><img src="media/LeRobot_Writer.png" alt="LeRobot Writer Screenshot" title="LeRobot Author" width="375" height="225"></td>
+    </tr>
+  </table>
+</div>
 
 ## Installation
 First, install the uv package manager and setup a virtual environment as 
