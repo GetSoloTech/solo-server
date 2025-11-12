@@ -13,6 +13,14 @@ CLI for Solo-Server:
 
 </div>
 
+<!--<p align="center">
+  <img src="media/solo_symbol.png" alt="Solo Tech" width="500" height="300">
+</p> -->
+
+<p align="center">
+  <a href="media/solo_symbol.zip" download>Download Solo Tech Symbol (ZIP)</a>
+</p>
+
 <div align="center">
   <table>
     <tr>
@@ -28,7 +36,7 @@ Solo-CLI powers users of Physical AI Inference by providing access to efficiency
 
 <p align="center">
   <a href="https://docs.getsolo.tech">Docs</a> |
-  <a href="getsolo.tech">About</a>
+  <a href="https://getsolo.tech">About</a>
 </p>
 
 ## Features & MCP Module Catalog
