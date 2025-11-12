@@ -22,14 +22,14 @@ CLI for Solo-Server:
   </table>
 </div>
 
-<p align="center">
-  <a href="https://docs.getsolo.tech">Docs</a> |
-  <a href="https://github.com/celestoai/agentor/tree/main/docs/examples">Examples</a>
-</p>
-
 ## Solo-CLI
 
 Solo-CLI powers users of Physical AI Inference by providing access to efficiency tuned AI models in the real world. From language to vision to action models, Solo-CLI allows you to interact with cutting-edge, on-device AI directly within the terminal. It is tailored for context aware intelligence, specialized for mission-critical tasks, and tuned for the edge.
+
+<p align="center">
+  <a href="https://docs.getsolo.tech">Docs</a> |
+  <a href="getsolo.tech">About</a>
+</p>
 
 ## Installation
 First, install the uv package manager and setup a virtual environment as 
@@ -51,12 +51,23 @@ solo --help
 
 ```
 
-<details>
+<!-- <details> 
 <summary><strong>Video: Solo Tech Installation</strong></summary>
 
 [![Video: Solo Tech Installation](media/SoloTechInstallThumbnail.png)](https://youtu.be/x2pVuYr08vk)
 
-</details>
+</details>*/ -->
+
+<iframe 
+    width="100%" 
+    height="400"
+    src="https://www.youtube.com/embed/x2pVuYr08vk" 
+    title="YouTube video player" 
+    frameborder="0" 
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
+    allowfullscreen>
+</iframe>
+
 
 ## Quick Installation for Mac (Automated)
 
