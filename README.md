@@ -109,9 +109,9 @@ solo --help
 
 ## 💻 Solo Tech Installation Demo
 
-![Solo Tech Installation Demo](media/SoloTechInstallationGIF.gif)
-
----
+<p align="center">
+  <img src="media/SoloTechInstallationGIF.gif" alt="Solo Tech Installation Demo" width="600" height="450">
+</p>
 
 **For the full video, [click here to watch on YouTube](https://www.youtube.com/embed/x2pVuYr08vk).** 
 
@@ -152,7 +152,9 @@ source solo_venv/bin/activate
 
 ## 💻 Quick Installation Demo
 
-![Mac Quickstart Installation Demo](media/MacQuickInstallGIF.gif)
+<p align="center">
+  <img src="media/MacQuickInstallGIF.gif" alt="Mac Quickstart Installation Demo" width="600" height="450">
+</p>
 
 ---
 
