@@ -51,12 +51,12 @@ solo --help
 
 ```
 
-<!-- <details> 
-<summary><strong>Video: Solo Tech Installation</strong></summary>
+<!-- <details>  
+//<summary><strong>Video: Solo Tech Installation</strong></summary>
 
-[![Video: Solo Tech Installation](media/SoloTechInstallThumbnail.png)](https://youtu.be/x2pVuYr08vk)
+//[![Video: Solo Tech Installation](media/SoloTechInstallThumbnail.png)](https://youtu.be/x2pVuYr08vk)
 
-</details>*/ -->
+//</details> -->
 
 <iframe 
     width="100%" 
@@ -96,12 +96,21 @@ After installation, activate the virtual environment:
 source solo_venv/bin/activate
 ```
 
-<details>
+<!-- <details>
 <summary><strong>Video: quickstart installation</strong></summary>
 
 [![Video: Mac Quickstart Installation](media/MacQuickInstallThumbnail.png)](https://youtu.be/bGjaIfKvyAA)
 
-</details>
+</details> -->
+
+
+## 💻 Quick Installation Demo
+
+![Mac Quickstart Installation Demo](path/to/your/installation-demo.gif)
+
+---
+
+**For the full video with audio, [click here to watch on YouTube](https://www.youtube.com/watch?v=bGjaIfKvyAA).**
 
 ## Solo Commands:
 
