@@ -6,7 +6,7 @@
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/license/apache-2-0)
 [![PyPI Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
 
-**Fastest way to deploy Physical AI**
+**Fastest way to deploy Physical AI on your hardware**
 
 CLI for Solo-Server:
 *Serving models in the physical world; optimized for on-device operation*
@@ -107,23 +107,13 @@ solo --help
 
 ```
 
-<!-- <details>  
-//<summary><strong>Video: Solo Tech Installation</strong></summary>
+## 💻 Solo Tech Installation Demo
 
-//[![Video: Solo Tech Installation](media/SoloTechInstallThumbnail.png)](https://youtu.be/x2pVuYr08vk)
+![Solo Tech Installation Demo](media/SoloTechInstallationGIF.gif)
 
-//</details> -->
+---
 
-<iframe 
-    width="100%" 
-    height="400"
-    src="https://www.youtube.com/embed/x2pVuYr08vk" 
-    title="Solo Tech Installation" 
-    frameborder="0" 
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" 
-    allowfullscreen>
-</iframe>
-
+**For the full video, [click here to watch on YouTube](https://www.youtube.com/embed/x2pVuYr08vk).** 
 
 ## Quick Installation for Mac (Automated)
 
@@ -162,11 +152,11 @@ source solo_venv/bin/activate
 
 ## 💻 Quick Installation Demo
 
-![Mac Quickstart Installation Demo](path/to/your/installation-demo.gif)
+![Mac Quickstart Installation Demo](media/MacQuickInstallGIF.gif)
 
 ---
 
-**For the full video with audio, [click here to watch on YouTube](https://www.youtube.com/watch?v=bGjaIfKvyAA).**
+**For the full video, [click here to watch on YouTube](https://www.youtube.com/watch?v=bGjaIfKvyAA).** 
 
 ## Solo Commands:
 
