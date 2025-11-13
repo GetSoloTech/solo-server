@@ -49,11 +49,9 @@ Solo-CLI powers users of Physical AI Inference by providing access to efficiency
 
 |               Feature               |               Description               |
 |-------------------------------------|-----------------------------------------|
-|🫀 **Solo Serve** | Start a model server with the specified model |
-|🩻 **Solo Robo** | Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference |
-|💪🏾 **Solo Hub** | Access AI models on your hardware and unleash performant |
-
-ensembles in the physical world. | Motion capture | Exercise tracking, recovery metrics | Physical therapy, sports medicine | Free |
+|💻 **Solo Serve** | Initiate the model server with the chosen model |
+|🤖 **Solo Robo** | Complete Robotics Workflow implementing initial hardware configuration and calibration to live operation (teleoperation) and machine learning deployment (training/inference) |
+|⚡ **Solo Hub** | Unlock optimal performance by deploying AI models to your local device |
 
 
 <div align="center">
