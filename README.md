@@ -47,11 +47,13 @@ Solo-CLI powers users of Physical AI Inference by providing access to efficiency
 
 ## Feature Catalog
 
-| Feature | Description | Input | Output | Use Case | Availability |
-|--------|-------------|--------|--------|----------|--------------|
-|🫀 **Solo Serve** | Real-time patient monitoring | Sensor streams, video | Heart rate, SpO2, alerts | ICU monitoring, telemedicine | Free |
-|🩻 **Solo Robo** | CT/MRI/X-ray analysis | Medical scans | Diagnosis, annotations | Radiology, emergency medicine | Free |
-|💪🏾 **Solo Hub** | Physical therapy progress | Motion capture | Exercise tracking, recovery metrics | Physical therapy, sports medicine | Free |
+|               Feature               |               Description               |
+|-------------------------------------|-----------------------------------------|
+|🫀 **Solo Serve** | Start a model server with the specified model |
+|🩻 **Solo Robo** | Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference |
+|💪🏾 **Solo Hub** | Access AI models on your hardware and unleash performant |
+
+ensembles in the physical world. | Motion capture | Exercise tracking, recovery metrics | Physical therapy, sports medicine | Free |
 
 
 <div align="center">
@@ -144,17 +146,17 @@ source solo_venv/bin/activate
 ```bash
 solo --help
                                                                                                            
-╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
+╭─ Commands ────────────────────────────────────────────────────────────────────────────────────────────────────────╮
 │ setup      Set up Solo CLI environment with interactive prompts and saves configuration to config.json.           │
-│ robo       Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference     │
-│ serve      Start a model server with the specified model.                                                            │
-│ status     Check running models, system status, and configuration.                                                   │
-│ list       List all downloaded models available in HuggingFace cache and Ollama.                                     │
+│ robo       Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference  │
+│ serve      Start a model server with the specified model.                                                         │
+│ status     Check running models, system status, and configuration.                                                │
+│ list       List all downloaded models available in HuggingFace cache and Ollama.                                  │
 │ test       Test if the Solo CLI is running correctly. Performs an inference test to verify server functionality.  │
 │ stop       Stops Solo CLI services. You can specify a server type with 'ollama', 'vllm', or 'llama.cpp'           │
-│            Otherwise, all Solo services will be stopped.                                                             │
-│ download   Downloads a Hugging Face model using the huggingface repo id.                                             │
-╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
+│            Otherwise, all Solo services will be stopped.                                                          │
+│ download   Downloads a Hugging Face model using the huggingface repo id.                                          │
+╰───────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
 
 ```
 ## Start server with SML models
