@@ -27,7 +27,7 @@ class LlamaResponse(BaseModel):
     eval_duration: float
 
 def load_model(model_path: str) -> Tuple[Llama, float]:
-    console.print(Panel.fit(f"[cyan]Loading model: {model_path}[/]", title="[bold magenta]Solo Server[/]"))
+    console.print(Panel.fit(f"[cyan]Loading model: {model_path}[/]", title="[bold magenta]Solo CLI[/]"))
     start_time = time.time()
     model = Llama(model_path=model_path)
     load_duration = time.time() - start_time
@@ -151,7 +151,7 @@ def benchmark(
     if not model_name:
         model_name = typer.prompt("Enter model name")
 
-    console.print(f"\n[bold cyan]Starting Solo Server Benchmark for {server_type} with model {model_name}...[/]")
+    console.print(f"\n[bold cyan]Starting Solo CLI Benchmark for {server_type} with model {model_name}...[/]")
 
     model = None
     load_duration = 0.0

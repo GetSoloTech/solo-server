@@ -145,13 +145,13 @@ source solo_venv/bin/activate
 solo --help
                                                                                                            
 ╭─ Commands ───────────────────────────────────────────────────────────────────────────────────────────────────────────╮
-│ setup      Set up Solo Server environment with interactive prompts and saves configuration to config.json.           │
+│ setup      Set up Solo CLI environment with interactive prompts and saves configuration to config.json.           │
 │ robo       Robotics operations: motor setup, calibration, teleoperation, data recording, training, and inference     │
 │ serve      Start a model server with the specified model.                                                            │
 │ status     Check running models, system status, and configuration.                                                   │
 │ list       List all downloaded models available in HuggingFace cache and Ollama.                                     │
-│ test       Test if the Solo server is running correctly. Performs an inference test to verify server functionality.  │
-│ stop       Stops Solo Server services. You can specify a server type with 'ollama', 'vllm', or 'llama.cpp'           │
+│ test       Test if the Solo CLI is running correctly. Performs an inference test to verify server functionality.  │
+│ stop       Stops Solo CLI services. You can specify a server type with 'ollama', 'vllm', or 'llama.cpp'           │
 │            Otherwise, all Solo services will be stopped.                                                             │
 │ download   Downloads a Hugging Face model using the huggingface repo id.                                             │
 ╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯
@@ -166,7 +166,7 @@ solo setup
 solo serve --server ollama --model llama3.2:1b
 ```
 
-## Interactive Lerobot With Solo Server
+## Interactive Lerobot With Solo CLI
 Find more details here: [Solo Robo Documentation](solo/commands/robots/lerobot/README.md) 
 
 ```bash

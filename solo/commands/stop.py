@@ -17,7 +17,7 @@ console = Console()
 
 def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama', 'vllm', 'llama.cpp')")):
     """
-    Stops Solo Server services. If a server type is specified (e.g., 'ollama', 'vllm', 'llama.cpp'),
+    Stops Solo CLI services. If a server type is specified (e.g., 'ollama', 'vllm', 'llama.cpp'),
     only that specific service will be stopped. Otherwise, all Solo services will be stopped.
     """
     typer.echo("🔍 Checking running services...")
@@ -108,7 +108,7 @@ def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama',
             else:
                 typer.echo(f"  • {service['type']} container: {service['id']}")
         
-        typer.echo("\n🛑 Stopping Solo Server...")
+        typer.echo("\n🛑 Stopping Solo CLI...")
         
         # Filter services based on name if provided
         services_to_stop = []

@@ -45,7 +45,7 @@ def serve(
     # Check if config file exists
     if not os.path.exists(CONFIG_PATH):
         typer.echo("❌ Configuration file not found. Please run 'solo setup' first.", err=True)
-        typer.echo("Run 'solo setup' to complete the Solo Server setup and then try again.")
+        typer.echo("Run 'solo setup' to complete the Solo CLI setup and then try again.")
         raise typer.Exit(code=1)
     
     # Load configuration
@@ -116,7 +116,7 @@ def serve(
             port = llama_cpp_config.get('default_port', 5070)
     
     # Start the appropriate server
-    typer.echo(f"Starting Solo server...")
+    typer.echo(f"Starting Solo CLI...")
     success = False
     original_model_name = model
 
@@ -153,7 +153,7 @@ def serve(
             if success:
                 typer.echo(f"Use 'docker logs -f {vllm_config.get('container_name', 'solo-vllm')}' to view the logs.")
         except Exception as e:
-            typer.echo(f"❌ Failed to start Solo Server: {e}", err=True)
+            typer.echo(f"❌ Failed to start Solo CLI: {e}", err=True)
             raise typer.Exit(code=1)
     
     # For Ollama, check if we need Docker or can use native installation
@@ -173,7 +173,7 @@ def serve(
             use_native = True
             # Start native Ollama server
             if not start_ollama_server(gpu_enabled, gpu_vendor, port):
-                typer.echo("❌ Failed to start Solo Server!", err=True)
+                typer.echo("❌ Failed to start Solo CLI!", err=True)
                 raise typer.Exit(code=1)
             
             # Pull the model if not already available
@@ -222,7 +222,7 @@ def serve(
             
             # Start Docker-based Ollama server
             if not start_ollama_server(gpu_enabled, gpu_vendor, port):
-                typer.echo("❌ Failed to start Solo Server!", err=True)
+                typer.echo("❌ Failed to start Solo CLI!", err=True)
                 raise typer.Exit(code=1)
             
             # Pull the model if not already available
@@ -247,7 +247,7 @@ def serve(
         # Start llama.cpp server with the specified model
         success = start_llama_cpp_server(os_name, model_path=model, port=port)
         if not success:
-            typer.echo("❌ Failed to start Solo server", err=True)
+            typer.echo("❌ Failed to start Solo CLI", err=True)
             raise typer.Exit(code=1)
     
     # Display server information in the requested format
@@ -293,7 +293,7 @@ def serve(
             json.dump(config, f, indent=4)
         
         # Print server information
-        typer.echo("✅ Solo Server is running")
+        typer.echo("✅ Solo CLI is running")
         typer.secho(f"Model  - {display_model}", fg=typer.colors.BRIGHT_CYAN, bold=True)
         typer.secho(f"Access Server at - http://localhost:{port}", fg=typer.colors.BRIGHT_CYAN, bold=True)
         

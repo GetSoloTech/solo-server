@@ -20,7 +20,7 @@ def test(
     Test if Solo CLI is running correctly.
     Performs an inference test to verify server functionality.
     """
-    typer.echo("Testing Solo server connection...")
+    typer.echo("Testing Solo CLI connection...")
     
     # Check if config file exists
     if not os.path.exists(CONFIG_PATH):

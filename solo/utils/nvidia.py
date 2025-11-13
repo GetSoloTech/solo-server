@@ -82,5 +82,5 @@ def install_nvidia_toolkit_windows():
     typer.echo(" - Ensure Docker Desktop is installed and running.")
     typer.echo(" - Enable 'Use the WSL 2 based engine' in Docker Desktop settings.\n")
     
-    typer.secho("⚠️  Please restart Solo Server after installing the required tools.", fg=typer.colors.YELLOW)
+    typer.secho("⚠️  Please restart Solo CLI after installing the required tools.", fg=typer.colors.YELLOW)
     raise typer.Exit(1)

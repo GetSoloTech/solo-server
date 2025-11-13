@@ -115,7 +115,7 @@ def start_ui(server_type: str, container_name: str = None) -> bool:
                         capture_output=True,
                         text=True
                     )
-                    typer.echo(f"Connected Solo server to Solo UI")
+                    typer.echo(f"Connected Solo CLI to Solo UI")
             except Exception as e:
                 # If connecting fails, we can still try to run the UI
                 typer.echo(f"Note: Could not connect server to network: {e}")
@@ -308,7 +308,7 @@ def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
             elif cpu in ["Intel", "AMD"]:
                 image = vllm_config.get('images', {}).get('cpu', "getsolo/vllm-cpu")
             else:
-                typer.echo("❌ Solo server vLLM currently do not support your machine", err=True)
+                typer.echo("❌ Solo CLI vLLM currently does not support your machine", err=True)
                 return False
 
             # Check if image exists
@@ -319,7 +319,7 @@ def start_vllm_server(gpu_enabled: bool, cpu: str = None, gpu_vendor: str = None
             ).stdout.strip()
 
             if not image_exists:
-                typer.echo(f"❌ Solo server is not setup. Please run 'solo setup' first.", err=True)
+                typer.echo(f"❌ Solo CLI is not setup. Please run 'solo setup' first.", err=True)
                 return False
 
             docker_run_cmd.append(image)
@@ -468,7 +468,7 @@ def start_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
             try:
                 subprocess.run(["docker", "image", "inspect", image], check=True, capture_output=True)
             except subprocess.CalledProcessError:
-                typer.echo("❌ Solo server is not setup. Please run 'solo setup' first", err=True)
+                typer.echo("❌ Solo CLI is not setup. Please run 'solo setup' first", err=True)
                 return False
 
             # Start Ollama container
@@ -509,7 +509,7 @@ def start_ollama_server(gpu_enabled: bool = False, gpu_vendor: str = None, port:
             except subprocess.CalledProcessError:
                 time.sleep(1)
         
-        typer.echo("❌ Solo server failed to start within timeout", err=True)
+        typer.echo("❌ Solo CLI failed to start within timeout", err=True)
         return False
 
     except subprocess.CalledProcessError as e:
@@ -599,7 +599,7 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
                 f'start cmd /k "{cmd_str}"',
                 shell=True
             )
-            typer.echo(f"Solo Server is running in a new terminal window. Use ctrl + c to stop.")
+            typer.echo(f"Solo CLI is running in a new terminal window. Use ctrl + c to stop.")
         else:
             # For Unix-like systems, use terminal-specific commands
             if os_name == "Darwin":  # macOS
@@ -654,7 +654,7 @@ def start_llama_cpp_server(os_name: str = None, model_path: str = None, port: in
         return True
         
     except Exception as e:
-        typer.echo(f"❌ Failed to start Solo server: {e}", err=True)
+        typer.echo(f"❌ Failed to start Solo CLI: {e}", err=True)
         return False
 
 def is_huggingface_repo(model: str) -> bool:

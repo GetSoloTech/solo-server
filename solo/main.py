@@ -37,9 +37,9 @@ class ServerType(str, Enum):
 
 def setup():
     """
-    Set up Solo Server environment with interactive prompts and saves configuration to config.json.
+    Set up the Solo CLI environment with interactive prompts and saves configuration to config.json.
     """
-    typer.echo("💾 Setting up Solo Server...")
+    typer.echo("💾 Setting up Solo CLI...")
     
     # Step 1: HuggingFace Authentication
     typer.echo("🔐 Step 1: HuggingFace Authentication")
@@ -375,5 +375,5 @@ HUGGINGFACE_TOKEN={hf_token}
         json.dump(config, f, indent=4)
     
     typer.echo(f"\nConfiguration saved to {CONFIG_PATH}")
-    typer.echo("🎉 Solo Server setup completed successfully!")
+    typer.echo("🎉 Solo CLI setup completed successfully!")
     typer.secho(f"Use 'solo serve -m model_name' to start serving your model.", fg=typer.colors.GREEN)

@@ -32,7 +32,7 @@ def robo(
 @app.command()
 def setup():
     """
-    Set up Solo server environment with interactive prompts and saves configuration to config.json.
+    Set up Solo CLI environment with interactive prompts and saves configuration to config.json.
     """
     from solo.main import setup as _setup
     _setup()
@@ -79,7 +79,7 @@ def test(
     timeout: Optional[int] = typer.Option(None, "--timeout", "-t", help="Request timeout in seconds. Default is 30s for vLLM/Llama.cpp and 120s for Ollama.")
 ):
     """
-    Test if the Solo server is running correctly.
+    Test if the Solo CLI is running correctly.
     Performs an inference test to verify server functionality.
     """
     from solo.commands.test import test as _test
@@ -89,7 +89,7 @@ def test(
 @app.command()
 def stop(name: str = typer.Option("", help="Server type to stop (e.g., 'ollama', 'vllm', 'llama.cpp')")):
     """
-    Stops Solo Server services. If a server type is specified (e.g., 'ollama', 'vllm', 'llama.cpp'),
+    Stops Solo CLI services. If a server type is specified (e.g., 'ollama', 'vllm', 'llama.cpp'),
     only that specific service will be stopped. Otherwise, all Solo services will be stopped.
     """
     from solo.commands.stop import stop as _stop
