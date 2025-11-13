@@ -32,61 +32,13 @@ Solo-CLI powers users of Physical AI Inference by providing access to efficiency
   <a href="https://getsolo.tech">About</a>
 </p>
 
-## Features & MCP Module Catalog
+## Feature Catalog
 
-### Medical & Healthcare (5 modules)
-
-| Module | Description | Input | Output | Use Case | Availability |
+| Feature | Description | Input | Output | Use Case | Availability |
 |--------|-------------|--------|--------|----------|--------------|
-|🫀 **VitalSignsMCP** | Real-time patient monitoring | Sensor streams, video | Heart rate, SpO2, alerts | ICU monitoring, telemedicine | Free |
-|🩻 **MedicalImagingMCP** | CT/MRI/X-ray analysis | Medical scans | Diagnosis, annotations | Radiology, emergency medicine | Free |
-|💪🏾 **RehabTrackingMCP** | Physical therapy progress | Motion capture | Exercise tracking, recovery metrics | Physical therapy, sports medicine | Free |
-|💉 **SurgicalGuidanceMCP** | OR instrument tracking | Video feeds, RFID | Tool identification, workflow | Operating room management | Pro |
-|💊 **DrugInteractionMCP** | Medication safety analysis | Prescription data | Interaction warnings, dosing | Pharmacy, clinical decision support | Pro |
-
-
-### Agricultural & Environment (5 modules)
-
-| Module | Description | Input | Output | Use Case | Availability |
-|--------|-------------|--------|--------|----------|--------------|
-|🫛 **CropHealthMCP** | Precision agriculture analysis | Drone imagery, sensors | Disease detection, yield prediction | Farm management, crop insurance | Free |
-|🪴 **SoilAnalysisMCP** | Soil condition monitoring | Sensor networks | pH, nutrients, moisture levels | Precision farming, sustainability | Free |
-|🌦️ **WeatherPredictionMCP** | Localized weather forecasting | Meteorological data | Micro-climate predictions | Irrigation planning, harvest timing | Free |
-|🐄 **LivestockManagementMCP** | Animal health and tracking | RFID, cameras, sensors | Health status, location, behavior | Ranch management, veterinary care | Pro |
-|📦 **SupplyChainMCP** | Agricultural logistics | Market data, inventory | Pricing, routing, demand forecasting | Food distribution, commodity trading | Pro |
-
-
-### Industrial & Manufacturing (5 modules)
-
-| Module | Description | Input | Output | Use Case | Availability |
-|--------|-------------|--------|--------|----------|--------------|
-|🔩 **PredictiveMaintenanceMCP** | Equipment failure prediction | Vibration, thermal, acoustic | Failure alerts, maintenance schedules | Manufacturing, oil & gas | Free |
-|✅ **QualityControlMCP** | Automated defect detection | Product images, measurements | Pass/fail, defect classification | Assembly lines, quality assurance | Free |
-|⚡️ **EnergyOptimizationMCP** | Smart power management | Smart meters, usage patterns | Cost reduction, efficiency gains | Factory automation, green manufacturing | Free |
-|🦾 **RoboticsControlMCP** | Multi-robot coordination | Robot states, task queues | Work allocation, path planning | Automated warehouses, assembly | Pro |
-|🤖 **DigitalTwinMCP** | Real-time process mirroring | Production telemetry | Performance insights, optimization | Process industries, smart factories | Pro |
-
-
-### Robotics & Automation (5 modules)
-
-| Module | Description | Input | Output | Use Case | Availability |
-|--------|-------------|--------|--------|----------|--------------|
-|🛣️ **NavigationMCP** | SLAM and path planning | LiDAR, cameras, IMU | Maps, waypoints, obstacle avoidance | Autonomous vehicles, service robots | Free |
-|🦿 **ManipulationMCP** | Object detection and grasping | RGB-D cameras | Grasp poses, object properties | Pick-and-place, warehouse automation | Free |
-|👤 **HumanRobotMCP** | Social interaction and safety | Cameras, microphones | Emotion recognition, voice commands | Service robots, eldercare | Free |
-|🐝 **SwarmControlMCP** | Multi-agent coordination | Network communications | Formation control, task allocation | Drone swarms, distributed robotics | Pro |
-|🚘 **AutonomousVehicleMCP** | Self-driving capabilities | Vehicle sensors | Steering, braking, route planning | Autonomous cars, delivery robots | Pro |
-
-
-### Educational & Research (5 modules)
-
-| Module | Description | Input | Output | Use Case | Availability |
-|--------|-------------|--------|--------|----------|--------------|
-|📝 **LearningAnalyticsMCP** | Student performance tracking | Interaction data, assessments | Progress insights, recommendations | Online education, skill assessment | Free |
-|🥼 **LabAssistantMCP** | Scientific experiment guidance | Protocols, sensor data | Step-by-step instructions, safety alerts | Research labs, STEM education | Free |
-|🧏🏼‍♀️ **AccessibilityMCP** | Inclusive learning support | Text, audio, video | Translations, adaptations | Special needs education, language learning | Free |
-|👨🏻‍🔬 **ResearchAutomationMCP** | Data analysis and hypothesis generation | Research datasets | Statistical insights, literature reviews | Academic research, R&D | Pro |
-|👩🏻‍🏫 **VirtualTutorMCP** | Personalized instruction | Learning patterns, preferences | Adaptive curricula, feedback | Personalized education, corporate training | Pro |
+|🫀 **Solo Serve** | Real-time patient monitoring | Sensor streams, video | Heart rate, SpO2, alerts | ICU monitoring, telemedicine | Free |
+|🩻 **Solo Robo** | CT/MRI/X-ray analysis | Medical scans | Diagnosis, annotations | Radiology, emergency medicine | Free |
+|💪🏾 **Solo Hub** | Physical therapy progress | Motion capture | Exercise tracking, recovery metrics | Physical therapy, sports medicine | Free |
 
 
 <div align="center">
