@@ -4,18 +4,18 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="solo-server",
-    version="0.5.2",
+    name="solo-cli",
+    version="0.6.0",
     author="Dhruv Diddi",
     author_email="dhruv.diddi@gmail.com",
-    description="CLI for Physical AI.",
+    description="CLI for Physical AI",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/GetSoloTech/solo-server",
-    packages=find_packages(include=["solo_server", "solo_server.*"]),
+    url="https://github.com/GetSoloTech/solo-cli",
+    packages=find_packages(include=["solo", "solo.*"]),
     include_package_data=True,
     package_data={
-        "solo_server.config": ["*.yaml"],
+        "solo.config": ["*.yaml"],
     },
     install_requires=[
         "typer",
@@ -36,7 +36,7 @@ setup(
     python_requires=">=3.8",
     entry_points={
         "console_scripts": [
-            "solo=solo_server.cli:app",
+            "solo=solo.cli:app",
         ],
     },
 )

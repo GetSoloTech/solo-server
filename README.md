@@ -4,12 +4,12 @@
 
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-blue.svg)](https://www.python.org/downloads/)
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/license/apache-2-0)
-[![PyPI Version](https://img.shields.io/pypi/v/solo-server)](https://pypi.org/project/solo-server/)
+[![PyPI Version](https://img.shields.io/pypi/v/solo-cli)](https://pypi.org/project/solo-cli/)
 
 **Fastest way to deploy Physical AI on your hardware**
 
-CLI for Solo-Server:
-*Serving models in the physical world; optimized for on-device operation*
+Simple CLI for Physical AI:
+*Fine-tune and serve models in the physical world; optimized for edge & on-device operations*
 
 </div>
 
@@ -23,7 +23,20 @@ CLI for Solo-Server:
 
 
 
-## Solo-CLI
+---
+
+> **📢 IMPORTANT: Package Renamed**
+> 
+> This package has been renamed from **`solo-server`** to **`solo-cli`**!
+> 
+> If you're upgrading from `solo-server`, please see the **[Migration Guide](MIGRATION.md)** for upgrade instructions.
+> 
+> - **Old**: `pip install solo-server`
+> - **New**: `pip install solo-cli`
+> - **Config Migration**: `~/.solo_server` → `~/.solo`
+> - **CLI Command**: Still `solo` (unchanged) ✅
+
+---
 
 Solo-CLI powers users of Physical AI Inference by providing access to efficiency tuned AI models in the real world. From language to vision to action models, Solo-CLI allows you to interact with cutting-edge, on-device AI directly within the terminal. It is tailored for context aware intelligence, specialized for mission-critical tasks, and tuned for the edge.
 
@@ -99,18 +112,21 @@ Solo-CLI powers users of Physical AI Inference by providing access to efficiency
 </div>
 
 ## Installation
+
+> **Upgrading from solo-server?** See the [Migration Guide](MIGRATION.md) first.
+
 First, install the uv package manager and setup a virtual environment as 
 explained in [prereq.md](prereq.md)
 
 ```bash
 
-#Choose one of the following for solo-server installation
-#1. Install solo server from PyPI python manager
-uv pip install solo-server
+#Choose one of the following for solo-cli installation
+#1. Install solo cli from PyPI python manager
+uv pip install solo-cli
 
-#2. Install solo server from source
-git clone https://github.com/GetSoloTech/solo-server.git
-cd solo-server
+#2. Install solo cli from source
+git clone https://github.com/GetSoloTech/solo-cli.git
+cd solo-cli
 uv pip install -e .
 
 # Solo commands
@@ -132,8 +148,8 @@ For Mac users, we provide an automated installation script that handles all the 
 
 ```bash
 # Clone the repository
-git clone https://github.com/GetSoloTech/solo-server.git
-cd solo-server
+git clone https://github.com/GetSoloTech/solo-cli.git
+cd solo-cli
 
 # Make the installation script executable
 chmod +x install_mac.sh
@@ -146,7 +162,7 @@ The script will automatically:
 - Install uv package manager (version 0.9.3)
 - Create a virtual environment with Python 3.12.12
 - Set up environment variables for dependencies
-- Install solo-server in development mode with fallback handling for mujoco dependencies
+- Install solo-cli in development mode with fallback handling for mujoco dependencies
 
 After installation, activate the virtual environment:
 ```bash
@@ -199,7 +215,7 @@ solo serve --server ollama --model llama3.2:1b
 ```
 
 ## Interactive Lerobot With Solo Server
-Find more details here: [Solo Robo Documentation](solo_server/commands/robots/lerobot/README.md) 
+Find more details here: [Solo Robo Documentation](solo/commands/robots/lerobot/README.md) 
 
 ```bash
 # Motors (both) → Calibrate (both) → Teleop
@@ -249,7 +265,7 @@ curl http://localhost:5070/api/chat -d '{
 
 ## Configuration
 Navigate to config file
-`.solo_server/config.json` 
+`.solo/config.json` 
 
 ```json
 {
