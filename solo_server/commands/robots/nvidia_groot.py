@@ -1,5 +1,5 @@
 """
-Nvidia GROOT framework handler for Solo Server
+Nvidia GROOT framework handler for Solo CLI
 Handles Nvidia GROOT robot operations
 """
 

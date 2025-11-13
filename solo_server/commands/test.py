@@ -17,7 +17,7 @@ def test(
     timeout: Optional[int] = typer.Option(None, "--timeout", "-t", help="Request timeout in seconds. Default is 30s for vLLM/Llama.cpp and 120s for Ollama.")
 ):
     """
-    Test if the Solo server is running correctly.
+    Test if Solo CLI is running correctly.
     Performs an inference test to verify server functionality.
     """
     typer.echo("Testing Solo server connection...")

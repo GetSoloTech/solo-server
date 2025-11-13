@@ -1,5 +1,5 @@
 """
-LeRobot framework handler for Solo Server
+LeRobot framework handler for Solo CLI
 Handles LeRobot motor setup, calibration, teleoperation, data recording, and training
 """
 

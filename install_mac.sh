@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# Solo Server Installation Script for Mac
+# Solo CLI Installation Script for Mac
 # This script installs uv package manager, creates a virtual environment,
-# clones the solo-server repository, and installs it in development mode.
+# clones the solo-cli repository, and installs it in development mode.
 
 set -e  # Exit on any error
 
-echo "🚀 Starting Solo Server installation for Mac..."
+echo "🚀 Starting Solo CLI installation for Mac..."
 
 # Step 1: Install uv package manager version 0.9.3
 echo "📦 Installing uv package manager version 0.9.3..."

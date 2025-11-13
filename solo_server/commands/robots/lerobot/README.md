@@ -1,6 +1,6 @@
-## LeRobot with Solo Server:
+## LeRobot with Solo CLI:
 
-Use Solo Server's `solo robo` command to run a complete robotics workflow with LeRobot: motor setup, calibration, teleoperation, data recording, training, and inference.
+Use Solo CLI's `solo robo` command to run a complete robotics workflow with LeRobot: motor setup, calibration, teleoperation, data recording, training, and inference.
 
 ### Quick start
 

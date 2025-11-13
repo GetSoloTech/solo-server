@@ -27,10 +27,10 @@ CLI for Solo-Server:
 
 Solo-CLI powers users of Physical AI Inference by providing access to efficiency tuned AI models in the real world. From language to vision to action models, Solo-CLI allows you to interact with cutting-edge, on-device AI directly within the terminal. It is tailored for context aware intelligence, specialized for mission-critical tasks, and tuned for the edge.
 
-<p align="center">
+<!-- <p align="center">
   <a href="https://docs.getsolo.tech">Docs</a> |
   <a href="https://getsolo.tech">About</a>
-</p>
+</p> -->
 
 ## Feature Catalog
 
