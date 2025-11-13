@@ -1,7 +1,7 @@
 
 A Next.js application that provides AI-assisted frontend question-and-answer functionality using a local LLM server.
 
-![AI Frontend Assistant Demo]([/public/images/demo.png](https://raw.githubusercontent.com/GetSoloTech/solo-server/refs/heads/main/example_apps/ai-chat/public/images/demo.png))
+![AI Frontend Assistant Demo]([/public/images/demo.png](https://raw.githubusercontent.com/GetSoloTech/solo-cli/refs/heads/main/example_apps/ai-chat/public/images/demo.png))
 
 ## Features
 

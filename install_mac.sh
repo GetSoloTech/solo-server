@@ -37,8 +37,8 @@ echo "🔧 Setting up environment variables for dependencies..."
 export MUJOCO_PATH=""
 export MUJOCO_GL=osmesa
 
-# Step 7: Install solo-server in development mode
-echo "⚙️ Installing solo-server in development mode..."
+# Step 7: Install solo-cli in development mode
+echo "⚙️ Installing solo-cli in development mode..."
 # Try to install with mujoco environment variables set
 uv pip install -e . || {
     echo "⚠️  Installation failed with mujoco dependency. Trying alternative approach..."
@@ -51,11 +51,11 @@ uv pip install -e . || {
     uv pip install gymnasium
     uv pip install opencv-python
     uv pip install pillow
-    echo "⚙️ Retrying solo-server installation..."
+    echo "⚙️ Retrying solo-cli installation..."
     uv pip install -e .
 }
 
-echo "🎉 Solo Server installation completed successfully!"
+echo "🎉 Solo CLI installation completed successfully!"
 echo ""
 echo "To activate the virtual environment in the future, run:"
 echo "source solo_venv/bin/activate"
