@@ -17,12 +17,6 @@ Simple CLI for Physical AI:
   <img src="media/solo_symbol.jpeg" alt="Solo Tech" width="300" height="300">
 </p>
 
-<!--<p align="center">
-  <a href="media/solo_symbol.zip" download>Download Solo Tech Symbol (ZIP)</a>
-</p> -->
-
-
-
 ---
 
 > **📢 IMPORTANT: Package Renamed**
@@ -44,15 +38,6 @@ Solo-CLI powers users of Physical AI Inference by providing access to efficiency
   <a href="https://docs.getsolo.tech">Docs</a> |
   <a href="https://getsolo.tech">About</a>
 </p>
-
-## Feature Catalog
-
-|               Feature               |               Description               |
-|-------------------------------------|-----------------------------------------|
-|💻 **Solo Serve** | Initiate the model server with the chosen model |
-|🤖 **Solo Robo** | Complete Robotics Workflow implementing initial hardware configuration and calibration to live operation (teleoperation) and machine learning deployment (training/inference) |
-|⚡ **Solo Hub** | Unlock optimal performance by deploying AI models to your local device |
-
 
 <div align="center">
   <table>
@@ -92,7 +77,7 @@ solo --help
   <img src="media/SoloTechInstallationGIF.gif" alt="Solo Tech Installation Demo" width="600" height="450">
 </p>
 
-**For the full video, [click here to watch on YouTube](https://www.youtube.com/embed/x2pVuYr08vk).** 
+**For the full installation demo, [click here to watch on YouTube](https://www.youtube.com/embed/x2pVuYr08vk).** 
 
 ## Quick Installation for Mac (Automated)
 
@@ -137,7 +122,7 @@ source solo_venv/bin/activate
 
 ---
 
-**For the full video, [click here to watch on YouTube](https://www.youtube.com/watch?v=bGjaIfKvyAA).** 
+**To see the full video, [click here to watch on YouTube](https://www.youtube.com/watch?v=bGjaIfKvyAA).** 
 
 ## Solo Commands:
 
