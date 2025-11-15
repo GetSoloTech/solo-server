@@ -11,12 +11,6 @@ from solo.config import CONFIG_PATH
 if TYPE_CHECKING:
     from lerobot.scripts.lerobot_record import RecordConfig
 
-# Import lerobot modules
-from lerobot.teleoperators.so100_leader import SO100LeaderConfig
-from lerobot.teleoperators.so101_leader import SO101LeaderConfig
-from lerobot.robots.so100_follower import SO100FollowerConfig
-from lerobot.robots.so101_follower import SO101FollowerConfig
-
 
 def validate_lerobot_config(config: dict) -> tuple[Optional[str], Optional[str], bool, bool, str]:
     """
@@ -76,13 +70,35 @@ def get_robot_config_classes(robot_type: str) -> Tuple[Optional[type], Optional[
     """
     Get the appropriate config classes for leader and follower based on robot type
     Returns (leader_config_class, follower_config_class)
+    
+    Uses lazy loading to only import config classes when actually needed.
     """
     if robot_type == "so100":
+        from lerobot.teleoperators.so100_leader import SO100LeaderConfig
+        from lerobot.robots.so100_follower import SO100FollowerConfig
         return SO100LeaderConfig, SO100FollowerConfig
     elif robot_type == "so101":
+        from lerobot.teleoperators.so101_leader import SO101LeaderConfig
+        from lerobot.robots.so101_follower import SO101FollowerConfig
         return SO101LeaderConfig, SO101FollowerConfig
     else:
         return None, None
+
+
+def normalize_fps(requested_fps: float) -> int:
+    """
+    Normalize FPS to common supported values.
+    Defaults to 30 FPS (most widely supported) unless specifically close to 60.
+    """
+    # Round to clean integer first
+    fps_int = round(requested_fps)
+    
+    # If very close to 60, use 60 FPS
+    if fps_int >= 55:
+        return 60
+    # Otherwise default to 30 FPS (most compatible)
+    else:
+        return 30
 
 
 def build_camera_configuration(camera_config: Dict) -> Dict:
@@ -105,19 +121,27 @@ def build_camera_configuration(camera_config: Dict) -> Dict:
         # Create camera config based on type
         if cam['camera_type'] == 'OpenCV':
             stream_profile = cam_info.get('default_stream_profile') or {}
+            requested_fps = stream_profile.get('fps', 30)
+            # Normalize FPS to avoid hardware mismatch issues
+            normalized_fps = normalize_fps(requested_fps)
+            
             cameras_dict[camera_name] = OpenCVCameraConfig(
                 index_or_path=cam_info.get('id', 0),
                 width=stream_profile.get('width', 640),
                 height=stream_profile.get('height', 480),
-                fps=stream_profile.get('fps', 30)
+                fps=normalized_fps
             )
         elif cam['camera_type'] == 'RealSense':
             stream_profile = cam_info.get('default_stream_profile') or {}
+            requested_fps = stream_profile.get('fps', 30)
+            # Normalize FPS to avoid hardware mismatch issues  
+            normalized_fps = normalize_fps(requested_fps)
+            
             cameras_dict[camera_name] = RealSenseCameraConfig(
                 serial_number_or_name=str(cam_info.get('id', '')),
                 width=stream_profile.get('width', 640),
                 height=stream_profile.get('height', 480),
-                fps=stream_profile.get('fps', 30)
+                fps=normalized_fps
             )
     
     return cameras_dict

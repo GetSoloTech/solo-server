@@ -62,13 +62,13 @@ def teleoperation(config: dict = None) -> bool:
                 typer.echo("📇 Known leader ids:")
                 for i, kid in enumerate(known_leader_ids, 1):
                     typer.echo(f"   {i}. {kid}")
-                leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
+            leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
         if not follower_id:
             if known_follower_ids:
                 typer.echo("📇 Known follower ids:")
                 for i, kid in enumerate(known_follower_ids, 1):
                     typer.echo(f"   {i}. {kid}")
-                follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
+            follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
         
         # Setup cameras if not provided
         if camera_config is None:

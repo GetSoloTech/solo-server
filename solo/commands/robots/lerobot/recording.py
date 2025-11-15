@@ -285,7 +285,8 @@ def recording_mode(config: dict):
         num_episodes = preconfigured.get('num_episodes')
         fps = preconfigured.get('fps')
         push_to_hub = preconfigured.get('push_to_hub')
-        should_resume = preconfigured.get('should_resume')
+        # When using preconfigured settings, default to resume mode
+        should_resume = True
         
         # Validate that we have the required settings
         if not (leader_port and follower_port and robot_type):
@@ -320,12 +321,12 @@ def recording_mode(config: dict):
             typer.echo("📇 Known leader ids:")
             for i, kid in enumerate(known_leader_ids, 1):
                 typer.echo(f"   {i}. {kid}")
-            leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
+        leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
         if known_follower_ids:
             typer.echo("📇 Known follower ids:")
             for i, kid in enumerate(known_follower_ids, 1):
                 typer.echo(f"   {i}. {kid}")
-            follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
+        follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
 
         # Step 1: HuggingFace authentication (optional)
         typer.echo("\n📋 Step 1: HuggingFace Hub Configuration")
@@ -596,15 +597,15 @@ def inference_mode(config: dict):
                     typer.echo("📇 Known leader ids:")
                     for i, kid in enumerate(known_leader_ids, 1):
                         typer.echo(f"   {i}. {kid}")
-                    leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
-                    typer.echo("🎮 Teleoperation enabled - you can override the policy using the leader arm")
+                leader_id = Prompt.ask("Enter leader id", default=default_leader_id)
+                typer.echo("🎮 Teleoperation enabled - you can override the policy using the leader arm")
 
         default_follower_id = config.get('lerobot', {}).get('follower_id') or f"{robot_type}_follower"
         if known_follower_ids:
             typer.echo("📇 Known follower ids:")
             for i, kid in enumerate(known_follower_ids, 1):
                 typer.echo(f"   {i}. {kid}")
-            follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
+        follower_id = Prompt.ask("Enter follower id", default=default_follower_id)
         
         # Step 1: HuggingFace authentication
         typer.echo("\n📋 Step 1: HuggingFace Authentication")
