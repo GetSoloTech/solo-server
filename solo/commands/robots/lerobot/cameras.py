@@ -6,10 +6,6 @@ import typer
 from typing import List, Dict
 from rich.prompt import Prompt
 
-# Import lerobot camera modules
-from lerobot.cameras.opencv.camera_opencv import OpenCVCamera
-from lerobot.cameras.realsense.camera_realsense import RealSenseCamera
-
 
 def find_cameras_by_type(camera_class, camera_type_name: str) -> List[Dict]:
     """Find cameras of a specific type and handle errors gracefully."""
@@ -55,7 +51,13 @@ def find_available_cameras() -> List[Dict]:
     """
     Find all available cameras (OpenCV and RealSense)
     Returns list of camera information dictionaries
+    
+    Uses lazy loading to only import camera libraries when actually scanning for cameras.
     """
+    # Lazy import - only load camera modules when actually scanning for cameras
+    from lerobot.cameras.opencv.camera_opencv import OpenCVCamera
+    from lerobot.cameras.realsense.camera_realsense import RealSenseCamera
+    
     all_cameras = []
     
     # Find OpenCV cameras

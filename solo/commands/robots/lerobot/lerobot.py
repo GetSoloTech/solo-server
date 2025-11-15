@@ -5,29 +5,26 @@ Handles LeRobot motor setup, calibration, teleoperation, data recording, and tra
 
 import typer
 from rich.console import Console
-from rich.prompt import Confirm
-from solo.commands.robots.lerobot.calibration import calibration
-from solo.commands.robots.lerobot.teleoperation import teleoperation
-from solo.commands.robots.lerobot.config import save_lerobot_config
-from solo.commands.robots.lerobot.calibration import check_calibration_success
-from solo.commands.robots.lerobot.recording import recording_mode, training_mode, inference_mode
 
 
 console = Console()
 
 def handle_lerobot(config: dict, calibrate: str, motors: str, teleop: bool, record: bool, train: bool, inference: bool = False):
     """Handle LeRobot framework operations"""
-    # LeRobot is now installed by default with solo-cli
+    # Check LeRobot installation
     import lerobot
     
     if train:
         # Training mode - train a policy on recorded data
+        from solo.commands.robots.lerobot.recording import training_mode
         training_mode(config)
     elif record:
         # Recording mode - check for existing calibration and setup recording
+        from solo.commands.robots.lerobot.recording import recording_mode
         recording_mode(config)
     elif inference:
         # Inference mode - run pretrained policy on robot
+        from solo.commands.robots.lerobot.recording import inference_mode
         inference_mode(config)
     elif teleop:
         # Teleoperation mode - check for existing calibration
@@ -41,8 +38,8 @@ def handle_lerobot(config: dict, calibrate: str, motors: str, teleop: bool, reco
 
 def teleop_mode(config: dict):
     """Handle LeRobot teleoperation mode"""
-    from solo.commands.robots.lerobot.config import validate_lerobot_config
-    from solo.commands.robots.lerobot.calibration import display_calibration_error, display_arms_status
+    # Lazy import - only load when teleop is actually used
+    from solo.commands.robots.lerobot.teleoperation import teleoperation
 
     typer.echo("🎮 Starting LeRobot teleoperation mode...")
         
@@ -55,6 +52,10 @@ def teleop_mode(config: dict):
 
 def calibration_mode(config: dict, arm_type: str = None):
     """Handle LeRobot calibration mode"""
+    # Lazy import - only load when calibration is actually used
+    from solo.commands.robots.lerobot.calibration import calibration, check_calibration_success
+    from solo.commands.robots.lerobot.config import save_lerobot_config
+    
     typer.echo("🔧 Starting LeRobot calibration mode...")
     
     arm_config = calibration(config, arm_type)
@@ -65,12 +66,12 @@ def calibration_mode(config: dict, arm_type: str = None):
 
 def motor_setup_mode(config: dict, arm_type: str = None):
     """Handle LeRobot motor setup mode"""
-    typer.echo("🔧 Starting LeRobot motor setup mode...")
-    
     from solo.commands.robots.lerobot.calibration import setup_motors_for_arm
     from solo.commands.robots.lerobot.ports import detect_arm_port
     from solo.commands.robots.lerobot.config import save_lerobot_config
     from rich.prompt import Prompt, Confirm
+    
+    typer.echo("🔧 Starting LeRobot motor setup mode...")
 
     if arm_type is not None and arm_type not in ["leader", "follower", "all"]:
         raise ValueError(f"Invalid arm type: {arm_type}, please use 'leader', 'follower', or 'all'")
